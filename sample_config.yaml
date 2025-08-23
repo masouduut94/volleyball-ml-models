@@ -1,0 +1,35 @@
+# Sample ML Manager Configuration File
+# This file demonstrates the expected format for model weights configuration
+
+# Ball detection model weights
+ball_detection: "weights/ball_segment/model1/weights/best.pt"
+
+# Action detection model weights (6-class volleyball actions)
+action_detection: "weights/action_detection/6_class/1/weights/best.pt"
+
+# Game status classification model weights (VideoMAE checkpoint)
+game_status: "weights/game-state/3-states/checkpoint"
+
+# Court detection model weights
+court_detection: "weights/court_segment/weights/best.pt"
+
+# Player detection model weights
+# Set to null/none to use default YOLO pose estimation model
+# Or provide a custom path like: "weights/custom_player_model.pt"
+player_detection: null
+
+# Alternative configuration examples:
+# 
+# Custom weights directory:
+# ball_detection: "custom_weights/ball_model.pt"
+# action_detection: "custom_weights/action_model.pt"
+# game_status: "custom_weights/game_state_checkpoint"
+# court_detection: "custom_weights/court_model.pt"
+# player_detection: "custom_weights/player_model.pt"
+#
+# Remote weights (if supported):
+# ball_detection: "https://example.com/models/ball_model.pt"
+# action_detection: "https://example.com/models/action_model.pt"
+# game_status: "https://example.com/models/game_state_checkpoint"
+# court_detection: "https://example.com/models/court_model.pt"
+# player_detection: null
