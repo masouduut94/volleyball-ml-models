@@ -13,7 +13,7 @@ from transformers import VideoMAEImageProcessor, VideoMAEForVideoClassification
 import torch
 from PIL import Image
 
-from .data_structures import GameStateResult
+from ..core.data_structures import GameStateResult
 
 
 class GameStatusClassifier:

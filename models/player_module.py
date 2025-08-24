@@ -9,7 +9,7 @@ from typing import List, Optional, Union, Dict, Any, Tuple
 import numpy as np
 import cv2
 from .yolo_module import YOLOModule
-from .data_structures import DetectionBatch, SegmentationDetection, PoseDetection
+from ..core.data_structures import DetectionBatch
 from ..enums import PlayerDetectionMode, YOLOModelType
 
 
@@ -29,8 +29,6 @@ class PlayerModule:
                  model_path: str,
                  mode: PlayerDetectionMode = PlayerDetectionMode.POSE,
                  device: Optional[str] = None,
-                 conf_threshold: float = 0.25,
-                 iou_threshold: float = 0.45,
                  verbose: bool = False):
         """
         Initialize player module.
@@ -39,8 +37,6 @@ class PlayerModule:
             model_path: Path to player model weights
             mode: Analysis mode (detection, segmentation, or pose)
             device: Device to run inference on
-            conf_threshold: Confidence threshold for detections
-            iou_threshold: IoU threshold for NMS
             verbose: Whether to print verbose output
         """
         self.mode = mode
@@ -55,19 +51,14 @@ class PlayerModule:
         
         self.yolo_module = YOLOModule(
             model_path=model_path,
-            model_type=mode_to_type[mode],
             device=device,
-            conf_threshold=conf_threshold,
-            iou_threshold=iou_threshold,
             verbose=verbose
         )
         
         # Player-related class names
         self.player_class_names = ["person", "player", "volleyball_player"]
     
-    def switch_mode(self, 
-                   new_mode: PlayerDetectionMode,
-                   new_model_path: Optional[str] = None) -> None:
+    def switch_mode(self, new_mode: PlayerDetectionMode, new_model_path: Optional[str] = None) -> None:
         """
         Switch to a different analysis mode.
         
@@ -94,27 +85,28 @@ class PlayerModule:
         
         self.yolo_module = YOLOModule(
             model_path=self.model_path,
-            model_type=mode_to_type[new_mode],
             device=self.yolo_module.model.device if hasattr(self.yolo_module, 'model') else None,
-            conf_threshold=self.yolo_module.conf_threshold,
-            iou_threshold=self.yolo_module.iou_threshold,
             verbose=self.yolo_module.verbose
         )
     
     def detect_players(self, 
                       image: Union[str, np.ndarray, List[str], List[np.ndarray]],
+                      conf_threshold: float = 0.25,
+                      iou_threshold: float = 0.45,
                       **kwargs) -> DetectionBatch:
         """
         Detect players in image(s) using current mode.
         
         Args:
             image: Input image(s)
+            conf_threshold: Confidence threshold for detections
+            iou_threshold: IoU threshold for NMS
             **kwargs: Additional arguments for detection
             
         Returns:
             DetectionBatch with player detection results
         """
-        detections = self.yolo_module.detect(image, **kwargs)
+        detections = self.yolo_module.detect(image, conf_threshold, iou_threshold, **kwargs)
         
         # Filter to only player detections
         player_detections = []

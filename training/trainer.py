@@ -275,7 +275,8 @@ class UnifiedTrainer:
         else:
             raise ValueError(f"Unsupported configuration type: {type(config)}")
     
-    def validate_config(self, config_path: Union[str, Path]) -> Dict[str, Any]:
+    @staticmethod
+    def validate_config(config_path: Union[str, Path]) -> Dict[str, Any]:
         """
         Validate a training configuration file.
         

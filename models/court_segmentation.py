@@ -9,7 +9,7 @@ from typing import List, Optional, Union, Dict, Any, Tuple
 import numpy as np
 import cv2
 from .yolo_module import YOLOModule
-from .data_structures import DetectionBatch
+from ..core.data_structures import DetectionBatch
 from ..enums import YOLOModelType
 
 
@@ -24,8 +24,6 @@ class CourtSegmentation:
     def __init__(self, 
                  model_path: str,
                  device: Optional[str] = None,
-                 conf_threshold: float = 0.25,
-                 iou_threshold: float = 0.45,
                  verbose: bool = False):
         """
         Initialize court segmentation model.
@@ -33,16 +31,12 @@ class CourtSegmentation:
         Args:
             model_path: Path to court segmentation model weights
             device: Device to run inference on
-            conf_threshold: Confidence threshold for detections
-            iou_threshold: IoU threshold for NMS
             verbose: Whether to print verbose output
         """
         # Note: YOLOModule will automatically detect the model type
         self.yolo_module = YOLOModule(
             model_path=model_path,
             device=device,
-            conf_threshold=conf_threshold,
-            iou_threshold=iou_threshold,
             verbose=verbose
         )
         
@@ -50,18 +44,22 @@ class CourtSegmentation:
     
     def segment_court(self, 
                      image: Union[str, np.ndarray, List[str], List[np.ndarray]],
+                     conf_threshold: float = 0.25,
+                     iou_threshold: float = 0.45,
                      **kwargs) -> DetectionBatch:
         """
         Segment volleyball court in image(s).
         
         Args:
             image: Input image(s)
+            conf_threshold: Confidence threshold for detections
+            iou_threshold: IoU threshold for NMS
             **kwargs: Additional arguments for segmentation
             
         Returns:
             DetectionBatch with court segmentation results
         """
-        detections = self.yolo_module.detect(image, **kwargs)
+        detections = self.yolo_module.detect(image, conf_threshold, iou_threshold, **kwargs)
         
         # Filter to only court detections
         court_detections = []

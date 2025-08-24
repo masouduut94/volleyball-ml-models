@@ -6,14 +6,14 @@ the same API for detection, plotting, and result filtering.
 """
 
 import time
-from typing import List, Optional, Union, Tuple, Dict, Any
+from typing import List, Optional, Union, Tuple
 import numpy as np
 import cv2
 from ultralytics import YOLO
-from supervision import Detections, BoxAnnotator, MaskAnnotator, KeypointAnnotator
+from supervision import BoxAnnotator, MaskAnnotator, KeypointAnnotator
 from supervision.detection.core import Detections as SupervisionDetections
 
-from .data_structures import (
+from ..core.data_structures import (
     Detection, SegmentationDetection, PoseDetection, DetectionBatch,
     BoundingBox, KeyPoint
 )
@@ -31,8 +31,6 @@ class YOLOModule:
     def __init__(self, 
                  model_path: str,
                  device: Optional[str] = None,
-                 conf_threshold: float = 0.25,
-                 iou_threshold: float = 0.45,
                  verbose: bool = False):
         """
         Initialize YOLO module.
@@ -41,13 +39,9 @@ class YOLOModule:
             model_path: Path to YOLO model weights
             model_type: Type of model (optional, will be auto-detected if None)
             device: Device to run inference on ("cpu", "cuda", etc.)
-            conf_threshold: Confidence threshold for detections
-            iou_threshold: IoU threshold for NMS
             verbose: Whether to print verbose output
         """
         self.model_path = model_path
-        self.conf_threshold = conf_threshold
-        self.iou_threshold = iou_threshold
         self.verbose = verbose
         
         # Load YOLO model
@@ -91,12 +85,16 @@ class YOLOModule:
     
     def detect(self, 
                image: Union[str, np.ndarray, List[str], List[np.ndarray]],
+               conf_threshold: float = 0.25,
+               iou_threshold: float = 0.45,
                **kwargs) -> DetectionBatch:
         """
         Perform detection on input image(s).
         
         Args:
             image: Input image(s) - can be path, numpy array, or list of either
+            conf_threshold: Confidence threshold for detections
+            iou_threshold: IoU threshold for NMS
             **kwargs: Additional arguments for YOLO inference
             
         Returns:
@@ -107,8 +105,8 @@ class YOLOModule:
         # Run inference
         results = self.model(
             image,
-            conf=self.conf_threshold,
-            iou=self.iou_threshold,
+            conf=conf_threshold,
+            iou=iou_threshold,
             verbose=self.verbose,
             **kwargs
         )
@@ -190,7 +188,8 @@ class YOLOModule:
         
         return detections
     
-    def _extract_keypoints(self, keypoints_data) -> List[KeyPoint]:
+    @staticmethod
+    def _extract_keypoints(keypoints_data) -> List[KeyPoint]:
         """Extract keypoints from pose estimation result."""
         keypoints = []
         if keypoints_data is None:
@@ -206,7 +205,8 @@ class YOLOModule:
         
         return keypoints
     
-    def _get_image_shape(self, image) -> Tuple[int, int]:
+    @staticmethod
+    def _get_image_shape(image) -> Tuple[int, int]:
         """Get image shape from image input."""
         if isinstance(image, str):
             img = cv2.imread(image)

@@ -21,23 +21,23 @@ class ModelWeightsConfig(BaseSettings):
     """
     
     ball_detection: Optional[str] = Field(
-        default="weights/ball_segment/model1/weights/best.pt",
+        default="../weights/ball_segment/model1/weights/best.pt",
         description="Path to ball detection model weights"
     )
     action_detection: Optional[str] = Field(
-        default="weights/action_detection/6_class/1/weights/best.pt",
+        default="../weights/action_detection/6_class/1/weights/best.pt",
         description="Path to action detection model weights"
     )
     game_status: Optional[str] = Field(
-        default="weights/game-state/3-states/checkpoint",
+        default="../weights/game-state/3-states/checkpoint",
         description="Path to game status classification model weights"
     )
     court_detection: Optional[str] = Field(
-        default="weights/court_segment/weights/best.pt",
+        default="../weights/court_segment/weights/best.pt",
         description="Path to court detection model weights"
     )
     player_detection: Optional[str] = Field(
-        default=None,
+        default="None",
         description="Path to player detection model weights (None for default YOLO pose)"
     )
     

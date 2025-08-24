@@ -8,7 +8,7 @@ trained for volleyball action recognition.
 from typing import List, Optional, Union, Dict
 import numpy as np
 from .yolo_module import YOLOModule
-from .data_structures import DetectionBatch
+from ..core.data_structures import DetectionBatch
 
 
 class ActionDetector:
@@ -22,8 +22,6 @@ class ActionDetector:
     def __init__(self, 
                  model_path: str,
                  device: Optional[str] = None,
-                 conf_threshold: float = 0.25,
-                 iou_threshold: float = 0.45,
                  verbose: bool = False):
         """
         Initialize action detector.
@@ -31,15 +29,11 @@ class ActionDetector:
         Args:
             model_path: Path to action detection model weights
             device: Device to run inference on
-            conf_threshold: Confidence threshold for detections
-            iou_threshold: IoU threshold for NMS
             verbose: Whether to print verbose output
         """
         self.yolo_module = YOLOModule(
             model_path=model_path,
             device=device,
-            conf_threshold=conf_threshold,
-            iou_threshold=iou_threshold,
             verbose=verbose
         )
         
@@ -50,18 +44,22 @@ class ActionDetector:
     
     def detect_actions(self, 
                       image: Union[str, np.ndarray, List[str], List[np.ndarray]],
+                      conf_threshold: float = 0.25,
+                      iou_threshold: float = 0.45,
                       **kwargs) -> DetectionBatch:
         """
         Detect volleyball actions in image(s).
         
         Args:
             image: Input image(s)
+            conf_threshold: Confidence threshold for detections
+            iou_threshold: IoU threshold for NMS
             **kwargs: Additional arguments for detection
             
         Returns:
             DetectionBatch with action detection results
         """
-        return self.yolo_module.detect(image, **kwargs)
+        return self.yolo_module.detect(image, conf_threshold, iou_threshold, **kwargs)
     
     def filter_by_action_type(self, 
                              detections: DetectionBatch,

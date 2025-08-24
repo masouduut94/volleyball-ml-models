@@ -98,9 +98,16 @@ class GameStateResult:
     """Game state classification result."""
     predicted_class: str
     confidence: float
-    class_id: int
-    all_probabilities: Dict[str, float] = field(default_factory=dict)
-    timestamp: Optional[float] = None
+
+
+# Type alias for detection objects in tracking context
+DetectionObject = Union[
+    'Detection',
+    'SegmentationDetection',
+    'PoseDetection',
+    'ActionDetection',
+    Dict[str, Any]
+]
 
 
 @dataclass_json

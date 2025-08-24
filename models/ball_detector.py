@@ -8,7 +8,7 @@ trained for volleyball ball recognition and segmentation.
 from typing import List, Optional, Union, Tuple
 import numpy as np
 from .yolo_module import YOLOModule
-from .data_structures import DetectionBatch
+from ..core.data_structures import DetectionBatch
 
 
 class BallDetector:
@@ -22,8 +22,6 @@ class BallDetector:
     def __init__(self, 
                  model_path: str,
                  device: Optional[str] = None,
-                 conf_threshold: float = 0.25,
-                 iou_threshold: float = 0.45,
                  verbose: bool = False,
                  use_segmentation: bool = False):
         """
@@ -32,8 +30,6 @@ class BallDetector:
         Args:
             model_path: Path to ball detection model weights
             device: Device to run inference on
-            conf_threshold: Confidence threshold for detections
-            iou_threshold: IoU threshold for NMS
             verbose: Whether to print verbose output
             use_segmentation: Whether to use segmentation model
         """
@@ -41,8 +37,6 @@ class BallDetector:
         self.yolo_module = YOLOModule(
             model_path=model_path,
             device=device,
-            conf_threshold=conf_threshold,
-            iou_threshold=iou_threshold,
             verbose=verbose
         )
         
@@ -51,18 +45,22 @@ class BallDetector:
     
     def detect_ball(self, 
                    image: Union[str, np.ndarray, List[str], List[np.ndarray]],
+                   conf_threshold: float = 0.25,
+                   iou_threshold: float = 0.45,
                    **kwargs) -> DetectionBatch:
         """
         Detect volleyball ball in image(s).
         
         Args:
             image: Input image(s)
+            conf_threshold: Confidence threshold for detections
+            iou_threshold: IoU threshold for NMS
             **kwargs: Additional arguments for detection
             
         Returns:
             DetectionBatch with ball detection results
         """
-        detections = self.yolo_module.detect(image, **kwargs)
+        detections = self.yolo_module.detect(image, conf_threshold, iou_threshold, **kwargs)
         
         # Filter to only ball detections
         ball_detections = []
