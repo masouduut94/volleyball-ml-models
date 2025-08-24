@@ -1,0 +1,162 @@
+# YOLO Training Configuration
+# This file contains all the parameters needed for training YOLO models
+
+# Model Configuration
+model:
+  # YOLO model size (n, s, m, l, x)
+  size: "n"
+  # Model type (detect, segment, pose)
+  type: "detect"
+  # Number of classes
+  num_classes: 6
+  # Input image size
+  imgsz: 640
+  # Batch size
+  batch: 16
+  # Number of epochs
+  epochs: 100
+
+# Dataset Configuration
+dataset:
+  # Path to dataset YAML file
+  data: "data/datasets/yolo-6-classes/Version-1/data.yaml"
+  # Train/validation split
+  train: "images/train"
+  val: "images/val"
+  # Number of workers for data loading
+  workers: 8
+  # Cache images in memory
+  cache: false
+
+# Training Parameters
+training:
+  # Learning rate
+  lr0: 0.01
+  # Final learning rate
+  lrf: 0.01
+  # Momentum
+  momentum: 0.937
+  # Weight decay
+  weight_decay: 0.0005
+  # Warmup epochs
+  warmup_epochs: 3.0
+  # Warmup momentum
+  warmup_momentum: 0.8
+  # Warmup bias learning rate
+  warmup_bias_lr: 0.1
+
+# Augmentation
+augmentation:
+  # Horizontal flip probability
+  hsv_h: 0.015
+  # Saturation augmentation
+  hsv_s: 0.7
+  # Value augmentation
+  hsv_v: 0.4
+  # Degrees of rotation
+  degrees: 0.0
+  # Translation
+  translate: 0.1
+  # Scale
+  scale: 0.5
+  # Shear
+  shear: 0.0
+  # Perspective
+  perspective: 0.0
+  # Flip up-down
+  flipud: 0.0
+  # Flip left-right
+  fliplr: 0.5
+  # Mosaic augmentation
+  mosaic: 1.0
+  # MixUp augmentation
+  mixup: 0.0
+  # Copy paste augmentation
+  copy_paste: 0.0
+
+# Loss Configuration
+loss:
+  # Box loss gain
+  box: 0.05
+  # Classification loss gain
+  cls: 0.5
+  # DFL loss gain
+  dfl: 1.5
+  # Pose keypoint loss gain (for pose models)
+  pose: 12.0
+  # Keypoint loss gain
+  kobj: 1.0
+  # Label smoothing
+  label_smoothing: 0.0
+
+# Optimization
+optimizer:
+  # Optimizer type (SGD, Adam, etc.)
+  type: "SGD"
+  # Nesterov momentum
+  nesterov: false
+  # Adam beta1
+  beta1: 0.937
+  # Adam beta2
+  beta2: 0.999
+
+# Scheduler
+scheduler:
+  # Scheduler type (cosine, linear, etc.)
+  type: "cosine"
+  # Minimum learning rate factor
+  lrf: 0.01
+
+# Validation
+validation:
+  # Validation frequency (epochs)
+  val_freq: 1
+  # Save best model
+  save_best: true
+  # Save last model
+  save_last: true
+  # Save period
+  save_period: -1
+
+# Logging and Output
+output:
+  # Project name
+  project: "volleyball_analytics"
+  # Experiment name
+  name: "yolo_training"
+  # Output directory
+  save_dir: "runs/train"
+  # Save results
+  save: true
+  # Save confusion matrix
+  save_conf: true
+  # Save predictions
+  save_txt: false
+  # Save labels
+  save_labels: true
+  # Save crop
+  save_crop: false
+
+# Hardware
+hardware:
+  # Device (cpu, 0, 1, etc.)
+  device: "auto"
+  # Number of workers
+  workers: 8
+  # Mixed precision training
+  amp: true
+  # Half precision
+  half: false
+
+# Advanced Options
+advanced:
+  # Resume training from checkpoint
+  resume: false
+  # Checkpoint path
+  ckpt: ""
+  # Freeze layers
+  freeze: []
+  # Transfer learning
+  transfer: false
+  # Pretrained weights
+  pretrained: true

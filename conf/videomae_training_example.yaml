@@ -1,0 +1,65 @@
+# Example VideoMAE Training Configuration
+# Copy this file and modify the values as needed
+
+model:
+  model_name: "MCG-NJU/videomae-base"
+  num_classes: 3
+  image_size: 224
+  num_frames: 16
+  frame_interval: 16
+  dropout_rate: 0.1
+  attention_dropout: 0.0
+
+dataset:
+  type: "custom"
+  data_dir: "path/to/your/dataset"  # REQUIRED: Path to dataset directory
+  train_split: 0.8
+  video_extensions: [".mp4", ".avi", ".mov", ".mkv"]
+  max_duration: 30.0
+  min_duration: 2.0
+  num_workers: 4
+  cache_dir: null
+
+training:
+  num_epochs: 100
+  batch_size: 8
+  learning_rate: 1e-4
+  weight_decay: 0.01
+  warmup_steps: 1000
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+
+optimizer:
+  type: "AdamW"
+  beta1: 0.9
+  beta2: 0.999
+  epsilon: 1e-8
+
+scheduler:
+  type: "linear"
+  num_warmup_steps: 1000
+  num_training_steps: null
+
+validation:
+  eval_strategy: "epoch"
+  eval_steps: null
+  save_strategy: "epoch"
+  save_steps: null
+  save_total_limit: null
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+
+output:
+  output_dir: "./output"
+  logging_dir: null
+  logging_steps: 100
+  report_to: ["tensorboard"]
+  run_name: null
+
+hardware:
+  device: "auto"
+  fp16: false
+  bf16: false
+  dataloader_pin_memory: true
+  dataloader_num_workers: 4

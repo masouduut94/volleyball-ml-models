@@ -12,48 +12,20 @@ import yaml
 from typing import List, Dict, Any, Optional, Union, Tuple
 from pathlib import Path
 from pydantic import BaseSettings, Field
-from ultralytics import YOLO
 from transformers import VideoMAEImageProcessor, VideoMAEForVideoClassification
 from torchvision.transforms import Compose, Lambda, Resize
 from pytorchvideo.transforms import Normalize, UniformTemporalSubsample
 
+# Import model classes
+from .models import (
+    ActionDetector, BallDetector, CourtSegmentation, 
+    PlayerModule, GameStatusClassifier
+)
+from .enums import PlayerDetectionMode
+from .settings import ModelWeightsConfig
 
-class ModelWeightsConfig(BaseSettings):
-    """
-    Pydantic settings for model weights configuration.
-    
-    Attributes:
-        ball_detection: Path to ball detection model weights
-        action_detection: Path to action detection model weights
-        game_status: Path to game status classification model weights
-        court_detection: Path to court detection model weights
-        player_detection: Path to player detection model weights (None for default YOLO pose)
-    """
-    
-    ball_detection: Optional[str] = Field(
-        default="weights/ball_segment/model1/weights/best.pt",
-        description="Path to ball detection model weights"
-    )
-    action_detection: Optional[str] = Field(
-        default="weights/action_detection/6_class/1/weights/best.pt",
-        description="Path to action detection model weights"
-    )
-    game_status: Optional[str] = Field(
-        default="weights/game-state/3-states/checkpoint",
-        description="Path to game status classification model weights"
-    )
-    court_detection: Optional[str] = Field(
-        default="weights/court_segment/weights/best.pt",
-        description="Path to court detection model weights"
-    )
-    player_detection: Optional[str] = Field(
-        default=None,
-        description="Path to player detection model weights (None for default YOLO pose)"
-    )
-    
-    class Config:
-        env_prefix = "ML_"
-        case_sensitive = False
+
+
 
 
 class MLManager:
@@ -181,16 +153,18 @@ class MLManager:
     def _init_action_detection(self):
         """Initialize action detection model."""
         try:
-            weight_path = Path(self.weights_config.action_detection) if self.weights_config.action_detection else None
-            if weight_path and weight_path.exists():
-                self.action_detector = YOLO(str(weight_path))
-                self.action_labels = {0: 'ball', 1: 'block', 2: 'receive', 3: 'set', 4: 'spike', 5: 'serve'}
+            if self.weights_config.action_detection:
+                self.action_detector = ActionDetector(
+                    model_path=self.weights_config.action_detection,
+                    device=self.device,
+                    verbose=self.verbose
+                )
                 if self.verbose:
-                    print(f"✓ Action detection model loaded: {weight_path}")
+                    print(f"✓ Action detection model loaded: {self.weights_config.action_detection}")
             else:
                 self.action_detector = None
                 if self.verbose:
-                    print(f"⚠ Action detection weights not found: {weight_path}")
+                    print("⚠ Action detection model not configured")
         except Exception as e:
             self.action_detector = None
             if self.verbose:
@@ -199,16 +173,18 @@ class MLManager:
     def _init_ball_segmentation(self):
         """Initialize ball segmentation model."""
         try:
-            weight_path = Path(self.weights_config.ball_detection) if self.weights_config.ball_detection else None
-            if weight_path and weight_path.exists():
-                self.ball_detector = YOLO(str(weight_path))
-                self.ball_labels = {0: 'ball'}
+            if self.weights_config.ball_detection:
+                self.ball_detector = BallDetector(
+                    model_path=self.weights_config.ball_detection,
+                    device=self.device,
+                    verbose=self.verbose
+                )
                 if self.verbose:
-                    print(f"✓ Ball segmentation model loaded: {weight_path}")
+                    print(f"✓ Ball segmentation model loaded: {self.weights_config.ball_detection}")
             else:
                 self.ball_detector = None
                 if self.verbose:
-                    print(f"⚠ Ball segmentation weights not found: {weight_path}")
+                    print("⚠ Ball segmentation model not configured")
         except Exception as e:
             self.ball_detector = None
             if self.verbose:
@@ -217,16 +193,18 @@ class MLManager:
     def _init_court_segmentation(self):
         """Initialize court segmentation model."""
         try:
-            weight_path = Path(self.weights_config.court_detection) if self.weights_config.court_detection else None
-            if weight_path and weight_path.exists():
-                self.court_detector = YOLO(str(weight_path))
-                self.court_labels = {0: 'court'}
+            if self.weights_config.court_detection:
+                self.court_detector = CourtSegmentation(
+                    model_path=self.weights_config.court_detection,
+                    device=self.device,
+                    verbose=self.verbose
+                )
                 if self.verbose:
-                    print(f"✓ Court segmentation model loaded: {weight_path}")
+                    print(f"✓ Court segmentation model loaded: {self.weights_config.court_detection}")
             else:
                 self.court_detector = None
                 if self.verbose:
-                    print(f"⚠ Court segmentation weights not found: {weight_path}")
+                    print("⚠ Court segmentation model not configured")
         except Exception as e:
             self.court_detector = None
             if self.verbose:
@@ -237,20 +215,22 @@ class MLManager:
         try:
             if self.weights_config.player_detection:
                 # Use custom player detection model
-                weight_path = Path(self.weights_config.player_detection)
-                if weight_path.exists():
-                    self.player_detector = YOLO(str(weight_path))
-                    self.player_labels = {0: 'person'}
-                    if self.verbose:
-                        print(f"✓ Custom player detection model loaded: {weight_path}")
-                else:
-                    self.player_detector = None
-                    if self.verbose:
-                        print(f"⚠ Custom player detection weights not found: {weight_path}")
+                self.player_detector = PlayerModule(
+                    model_path=self.weights_config.player_detection,
+                    mode=PlayerDetectionMode.POSE,  # Default to pose estimation
+                    device=self.device,
+                    verbose=self.verbose
+                )
+                if self.verbose:
+                    print(f"✓ Custom player detection model loaded: {self.weights_config.player_detection}")
             else:
                 # Use default YOLO pose estimation model
-                self.player_detector = YOLO("yolov8n-pose.pt")
-                self.player_labels = {0: 'person'}
+                self.player_detector = PlayerModule(
+                    model_path="yolov8n-pose.pt",
+                    mode=PlayerDetectionMode.POSE,
+                    device=self.device,
+                    verbose=self.verbose
+                )
                 if self.verbose:
                     print("✓ Default YOLO pose estimation model loaded for player detection")
         except Exception as e:
@@ -261,15 +241,18 @@ class MLManager:
     def _init_game_state_classification(self):
         """Initialize game state classification model."""
         try:
-            checkpoint_path = Path(self.weights_config.game_status) if self.weights_config.game_status else None
-            if checkpoint_path and checkpoint_path.exists():
-                self.game_state_detector = GameStateDetector(str(checkpoint_path))
+            if self.weights_config.game_status:
+                self.game_state_detector = GameStatusClassifier(
+                    model_path=self.weights_config.game_status,
+                    device=self.device,
+                    verbose=self.verbose
+                )
                 if self.verbose:
-                    print(f"✓ Game state classification model loaded: {checkpoint_path}")
+                    print(f"✓ Game state classification model loaded: {self.weights_config.game_status}")
             else:
                 self.game_state_detector = None
                 if self.verbose:
-                    print(f"⚠ Game state classification weights not found: {checkpoint_path}")
+                    print("⚠ Game state classification model not configured")
         except Exception as e:
             self.game_state_detector = None
             if self.verbose:
@@ -328,7 +311,7 @@ class MLManager:
                       frame: np.ndarray, 
                       exclude: Optional[List[str]] = None,
                       conf_threshold: float = 0.25,
-                      iou_threshold: float = 0.45) -> Dict[str, List[Dict[str, Any]]]:
+                      iou_threshold: float = 0.45) -> DetectionBatch:
         """
         Detect volleyball actions in a frame.
         
@@ -339,8 +322,7 @@ class MLManager:
             iou_threshold: IoU threshold for non-maximum suppression
             
         Returns:
-            Dictionary mapping action types to lists of detection results.
-            Each detection contains: 'bbox', 'confidence', 'class_id'
+            DetectionBatch with action detection results
             
         Raises:
             RuntimeError: If action detection model is not available
@@ -348,39 +330,13 @@ class MLManager:
         if self.action_detector is None:
             raise RuntimeError("Action detection model not available")
         
-        if exclude is None:
-            exclude = []
+        # Use the new ActionDetector class
+        detections = self.action_detector.detect_actions(frame)
         
-        # Filter classes to detect
-        available_classes = [k for k, v in self.action_labels.items() 
-                           if v not in exclude]
-        
-        # Run inference
-        results = self.action_detector(
-            frame, 
-            conf=conf_threshold, 
-            iou=iou_threshold,
-            classes=available_classes,
-            verbose=False
-        )
-        
-        # Process results
-        detections = {label: [] for label in self.action_labels.values()}
-        
-        if len(results) > 0 and results[0].boxes is not None:
-            boxes = results[0].boxes.xyxy.cpu().numpy()
-            confidences = results[0].boxes.conf.cpu().numpy()
-            class_ids = results[0].boxes.cls.cpu().numpy().astype(int)
-            
-            for box, conf, class_id in zip(boxes, confidences, class_ids):
-                label = self.action_labels[class_id]
-                if label not in exclude:
-                    detection = {
-                        'bbox': box.tolist(),  # [x1, y1, x2, y2]
-                        'confidence': float(conf),
-                        'class_id': int(class_id)
-                    }
-                    detections[label].append(detection)
+        # Filter by excluded actions if specified
+        if exclude:
+            detections = self.action_detector.filter_by_action_type(detections, 
+                [action for action in self.action_detector.volleyball_actions if action not in exclude])
         
         return detections
     
@@ -449,7 +405,7 @@ class MLManager:
     def detect_ball(self, 
                    frame: np.ndarray,
                    conf_threshold: float = 0.25,
-                   iou_threshold: float = 0.45) -> List[Dict[str, Any]]:
+                   iou_threshold: float = 0.45) -> DetectionBatch:
         """
         Detect ball in a frame using segmentation.
         
@@ -459,7 +415,7 @@ class MLManager:
             iou_threshold: IoU threshold for non-maximum suppression
             
         Returns:
-            List of ball detections, each containing: 'bbox', 'confidence', 'mask'
+            DetectionBatch with ball detection results
             
         Raises:
             RuntimeError: If ball detection model is not available
@@ -467,34 +423,8 @@ class MLManager:
         if self.ball_detector is None:
             raise RuntimeError("Ball detection model not available")
         
-        # Run inference
-        results = self.ball_detector(
-            frame, 
-            conf=conf_threshold, 
-            iou=iou_threshold,
-            verbose=False
-        )
-        
-        detections = []
-        
-        if len(results) > 0 and results[0].boxes is not None:
-            boxes = results[0].boxes.xyxy.cpu().numpy()
-            confidences = results[0].boxes.conf.cpu().numpy()
-            
-            # Get segmentation masks if available
-            masks = None
-            if hasattr(results[0], 'masks') and results[0].masks is not None:
-                masks = results[0].masks.data.cpu().numpy()
-            
-            for i, (box, conf) in enumerate(zip(boxes, confidences)):
-                detection = {
-                    'bbox': box.tolist(),  # [x1, y1, x2, y2]
-                    'confidence': float(conf),
-                    'mask': masks[i].tolist() if masks is not None else None
-                }
-                detections.append(detection)
-        
-        return detections
+        # Use the new BallDetector class
+        return self.ball_detector.detect_ball(frame)
     
     def detect_ball_batch(self, 
                           frames: List[np.ndarray],
@@ -552,7 +482,7 @@ class MLManager:
     def segment_court(self, 
                      frame: np.ndarray,
                      conf_threshold: float = 0.25,
-                     iou_threshold: float = 0.45) -> List[Dict[str, Any]]:
+                     iou_threshold: float = 0.45) -> DetectionBatch:
         """
         Segment volleyball court in a frame.
         
@@ -562,48 +492,22 @@ class MLManager:
             iou_threshold: IoU threshold for non-maximum suppression
             
         Returns:
-            List of court segmentation results, each containing: 'bbox', 'confidence', 'mask'
+            DetectionBatch with court segmentation results
             
         Raises:
             RuntimeError: If court segmentation model is not available
         """
         if self.court_detector is None:
-            raise RuntimeError("Court segmentation model not available")
+            raise RuntimeError("Court segmentation model is not available")
         
-        # Run inference
-        results = self.court_detector(
-            frame, 
-            conf=conf_threshold, 
-            iou=iou_threshold,
-            verbose=False
-        )
-        
-        detections = []
-        
-        if len(results) > 0 and results[0].boxes is not None:
-            boxes = results[0].boxes.xyxy.cpu().numpy()
-            confidences = results[0].boxes.conf.cpu().numpy()
-            
-            # Get segmentation masks if available
-            masks = None
-            if hasattr(results[0], 'masks') and results[0].masks is not None:
-                masks = results[0].masks.data.cpu().numpy()
-            
-            for i, (box, conf) in enumerate(zip(boxes, confidences)):
-                detection = {
-                    'bbox': box.tolist(),
-                    'confidence': float(conf),
-                    'mask': masks[i].tolist() if masks is not None else None
-                }
-                detections.append(detection)
-        
-        return detections
+        # Use the new CourtSegmentation class
+        return self.court_detector.segment_court(frame)
     
     # Player Detection Methods
     def detect_players(self, 
                       frame: np.ndarray,
                       conf_threshold: float = 0.25,
-                      iou_threshold: float = 0.45) -> List[Dict[str, Any]]:
+                      iou_threshold: float = 0.45) -> DetectionBatch:
         """
         Detect players in a frame.
         
@@ -613,7 +517,7 @@ class MLManager:
             iou_threshold: IoU threshold for non-maximum suppression
             
         Returns:
-            List of player detections, each containing: 'bbox', 'confidence'
+            DetectionBatch with player detection results
             
         Raises:
             RuntimeError: If player detection model is not available
@@ -621,32 +525,12 @@ class MLManager:
         if self.player_detector is None:
             raise RuntimeError("Player detection model not available")
         
-        # Run inference
-        results = self.player_detector(
-            frame, 
-            conf=conf_threshold, 
-            iou=iou_threshold,
-            verbose=False
-        )
-        
-        detections = []
-        
-        if len(results) > 0 and results[0].boxes is not None:
-            boxes = results[0].boxes.xyxy.cpu().numpy()
-            confidences = results[0].boxes.conf.cpu().numpy()
-            
-            for box, conf in zip(boxes, confidences):
-                detection = {
-                    'bbox': box.tolist(),
-                    'confidence': float(conf)
-                }
-                detections.append(detection)
-        
-        return detections
+        # Use the new PlayerModule class
+        return self.player_detector.detect_players(frame)
     
     # Game State Classification Methods
     def classify_game_state(self, 
-                           frames: List[np.ndarray]) -> str:
+                           frames: List[np.ndarray]) -> GameStateResult:
         """
         Classify the current game state using VideoMAE.
         
@@ -654,7 +538,7 @@ class MLManager:
             frames: List of consecutive frames for temporal analysis
             
         Returns:
-            Predicted game state: 'service', 'play', or 'no-play'
+            GameStateResult with classification results
             
         Raises:
             RuntimeError: If game state classification model is not available
@@ -662,7 +546,7 @@ class MLManager:
         if self.game_state_detector is None:
             raise RuntimeError("Game state classification model not available")
         
-        return self.game_state_detector.predict(frames)
+        return self.game_state_detector.classify_frames(frames)
     
     def classify_game_state_with_confidence(self, 
                                           frames: List[np.ndarray]) -> Dict[str, Any]:

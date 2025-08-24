@@ -1,0 +1,220 @@
+# VideoMAE Training Configuration
+# This file contains all the parameters needed for training VideoMAE models
+
+# Model Configuration
+model:
+  # Model name (videomae-base, videomae-large, etc.)
+  model_name: "MCG-NJU/videomae-base"
+  # Number of classes
+  num_classes: 3
+  # Input image size
+  image_size: 224
+  # Number of frames
+  num_frames: 16
+  # Frame interval
+  frame_interval: 16
+  # Tubelet size
+  tubelet_size: 16
+  # Hidden size
+  hidden_size: 768
+  # Number of attention heads
+  num_attention_heads: 12
+  # Number of layers
+  num_hidden_layers: 12
+  # Intermediate size
+  intermediate_size: 3072
+  # Dropout probability
+  hidden_dropout_prob: 0.1
+  # Attention dropout probability
+  attention_probs_dropout_prob: 0.1
+
+# Dataset Configuration
+dataset:
+  # Dataset type (custom, kinetics, etc.)
+  type: "custom"
+  # Path to dataset directory
+  data_dir: "data/datasets/game_state"
+  # Train/validation split
+  train_split: 0.8
+  # Video file extensions
+  video_extensions: [".mp4", ".avi", ".mov", ".mkv"]
+  # Maximum video duration (seconds)
+  max_duration: 30.0
+  # Minimum video duration (seconds)
+  min_duration: 2.0
+  # Number of workers for data loading
+  num_workers: 4
+  # Pin memory
+  pin_memory: true
+
+# Training Parameters
+training:
+  # Number of epochs
+  num_epochs: 100
+  # Batch size
+  batch_size: 8
+  # Learning rate
+  learning_rate: 1e-4
+  # Weight decay
+  weight_decay: 0.01
+  # Warmup steps
+  warmup_steps: 1000
+  # Gradient clipping
+  max_grad_norm: 1.0
+  # Accumulation steps
+  gradient_accumulation_steps: 1
+  # Mixed precision training
+  fp16: true
+  # Evaluation strategy
+  evaluation_strategy: "steps"
+  # Evaluation steps
+  eval_steps: 500
+  # Save strategy
+  save_strategy: "steps"
+  # Save steps
+  save_steps: 1000
+  # Save total limit
+  save_total_limit: 3
+  # Load best model at end
+  load_best_model_at_end: true
+  # Metric for best model
+  metric_for_best_model: "accuracy"
+  # Greater is better
+  greater_is_better: true
+
+# Data Augmentation
+augmentation:
+  # Random crop
+  random_crop: true
+  # Random horizontal flip
+  random_horizontal_flip: true
+  # Color jitter
+  color_jitter: 0.4
+  # Random rotation
+  random_rotation: 10.0
+  # Random brightness
+  random_brightness: 0.2
+  # Random contrast
+  random_contrast: 0.2
+  # Random saturation
+  random_saturation: 0.2
+  # Random hue
+  random_hue: 0.1
+  # Normalization mean
+  normalize_mean: [0.485, 0.456, 0.406]
+  # Normalization std
+  normalize_std: [0.229, 0.224, 0.225]
+
+# Optimizer
+optimizer:
+  # Optimizer type (AdamW, Adam, SGD)
+  type: "AdamW"
+  # Beta1
+  beta1: 0.9
+  # Beta2
+  beta2: 0.999
+  # Epsilon
+  epsilon: 1e-8
+  # Correct bias
+  correct_bias: true
+
+# Scheduler
+scheduler:
+  # Scheduler type (linear, cosine, cosine_with_restarts)
+  type: "linear"
+  # Number of training steps
+  num_training_steps: 10000
+  # Learning rate warmup ratio
+  warmup_ratio: 0.1
+
+# Loss Function
+loss:
+  # Loss type (CrossEntropyLoss, LabelSmoothingLoss)
+  type: "CrossEntropyLoss"
+  # Label smoothing
+  label_smoothing: 0.1
+  # Class weights (if imbalanced)
+  class_weights: null
+
+# Validation
+validation:
+  # Validation frequency (steps)
+  val_freq: 500
+  # Metrics to compute
+  metrics: ["accuracy", "precision", "recall", "f1"]
+  # Confusion matrix
+  save_confusion_matrix: true
+  # Per-class metrics
+  per_class_metrics: true
+
+# Logging and Output
+output:
+  # Output directory
+  output_dir: "runs/videomae_training"
+  # Project name
+  project_name: "volleyball_analytics"
+  # Experiment name
+  experiment_name: "game_state_classification"
+  # Logging steps
+  logging_steps: 100
+  # Log level
+  log_level: "info"
+  # Tensorboard logging
+  logging_dir: "runs/tensorboard"
+  # Save predictions
+  save_predictions: true
+  # Save metrics
+  save_metrics: true
+
+# Hardware
+hardware:
+  # Device (cpu, cuda, auto)
+  device: "auto"
+  # Number of GPUs
+  num_gpus: 1
+  # Mixed precision
+  mixed_precision: "fp16"
+  # Dataloader pin memory
+  pin_memory: true
+  # Non blocking
+  non_blocking: true
+
+# Advanced Options
+advanced:
+  # Resume from checkpoint
+  resume_from_checkpoint: false
+  # Checkpoint path
+  checkpoint_path: ""
+  # Freeze encoder
+  freeze_encoder: false
+  # Freeze layers
+  freeze_layers: []
+  # Transfer learning
+  transfer_learning: true
+  # Pretrained weights
+  pretrained: true
+  # Gradient checkpointing
+  gradient_checkpointing: false
+  # Early stopping patience
+  early_stopping_patience: 10
+  # Early stopping threshold
+  early_stopping_threshold: 0.001
+
+# Data Processing
+data_processing:
+  # Frame sampling strategy (uniform, random, center)
+  frame_sampling: "uniform"
+  # Temporal augmentation
+  temporal_augmentation: true
+  # Speed variation
+  speed_variation: [0.5, 1.0, 1.5]
+  # Frame dropping
+  frame_dropping: false
+  # Frame dropping probability
+  frame_drop_prob: 0.1
+  # Video resizing
+  resize_video: true
+  # Target FPS
+  target_fps: 30
+  # Audio processing
+  use_audio: false

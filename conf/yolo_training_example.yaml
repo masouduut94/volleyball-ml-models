@@ -1,0 +1,81 @@
+# Example YOLO Training Configuration
+# Copy this file and modify the values as needed
+
+model:
+  size: "n"  # n, s, m, l, x
+  type: "detect"  # detect, segment, pose
+  num_classes: 6
+  imgsz: 640
+  batch: 16
+  epochs: 100
+
+dataset:
+  data: "path/to/your/dataset.yaml"  # REQUIRED: Path to dataset YAML file
+  train: "images/train"
+  val: "images/val"
+  workers: 8
+  cache: false
+
+training:
+  lr0: 0.01
+  lrf: 0.01
+  momentum: 0.937
+  weight_decay: 0.0005
+  warmup_epochs: 3.0
+  warmup_momentum: 0.8
+  warmup_bias_lr: 0.1
+
+augmentation:
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  degrees: 0.0
+  translate: 0.1
+  scale: 0.5
+  shear: 0.0
+  perspective: 0.0
+  flipud: 0.0
+  fliplr: 0.5
+  mosaic: 1.0
+  mixup: 0.0
+  copy_paste: 0.0
+
+loss:
+  box: 0.05
+  cls: 0.5
+  dfl: 1.5
+  pose: 12.0
+  kobj: 1.0
+  label_smoothing: 0.0
+
+optimizer:
+  type: "SGD"
+  nesterov: false
+  beta1: 0.937
+  beta2: 0.999
+
+scheduler:
+  type: "cosine"
+  lrf: 0.01
+
+validation:
+  val_freq: 1
+  save_best: true
+  save_last: true
+  save_period: -1
+
+output:
+  project: "volleyball_analytics"
+  name: "yolo_training"
+  save_dir: "runs/train"
+  save: true
+  save_conf: true
+  save_txt: false
+  save_labels: true
+  save_crop: false
+
+hardware:
+  device: "auto"
+  workers: 8
+  amp: true
+  half: false
