@@ -160,8 +160,6 @@ class GameStatusClassifier:
                 print(f"Error during classification: {e}")
             return GameState.UNKNOWN
 
-
-
     def get_model_info(self) -> Dict[str, Any]:
         """
         Get information about the loaded model.
