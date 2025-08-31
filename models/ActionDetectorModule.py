@@ -7,11 +7,13 @@ trained for volleyball action recognition.
 
 from typing import List, Optional, Union, Dict
 import numpy as np
-from .yolo_module import YOLOModule
-from ..core.data_structures import DetectionBatch
+from .YoloModule import YOLOModule
+from ..core.data_structures import Detection
+from ..enums import DetectorModel
+from ..utils.logger import logger
 
 
-class ActionDetector:
+class ActionDetectorModule:
     """
     Specialized action detection model for volleyball actions.
     
@@ -21,20 +23,18 @@ class ActionDetector:
     
     def __init__(self, 
                  model_path: str,
-                 device: Optional[str] = None,
-                 verbose: bool = False):
+                 device: Optional[str] = None):
         """
         Initialize action detector.
         
         Args:
             model_path: Path to action detection model weights
             device: Device to run inference on
-            verbose: Whether to print verbose output
         """
+        logger.info(f"Initializing ActionDetector with model: {model_path}")
         self.yolo_module = YOLOModule(
             model_path=model_path,
-            device=device,
-            verbose=verbose
+            device=device
         )
         
         # Common volleyball actions
@@ -43,43 +43,46 @@ class ActionDetector:
         ]
     
     def detect_actions(self, 
-                      image: Union[str, np.ndarray, List[str], List[np.ndarray]],
+                      image: Union[str, np.ndarray],
                       conf_threshold: float = 0.25,
                       iou_threshold: float = 0.45,
-                      **kwargs) -> DetectionBatch:
+                      **kwargs) -> List[Detection]:
         """
-        Detect volleyball actions in image(s).
+        Detect volleyball actions in a single frame.
         
         Args:
-            image: Input image(s)
+            image: Input image (single frame)
             conf_threshold: Confidence threshold for detections
             iou_threshold: IoU threshold for NMS
             **kwargs: Additional arguments for detection
             
         Returns:
-            DetectionBatch with action detection results
+            List of Detection objects with action detection results
         """
-        return self.yolo_module.detect(image, conf_threshold, iou_threshold, **kwargs)
+        return self.yolo_module.detect(
+            image, 
+            conf_threshold, 
+            iou_threshold, 
+            detector_model=DetectorModel.ACTION_DETECTOR.value,
+            **kwargs
+        )
     
     def filter_by_action_type(self, 
-                             detections: DetectionBatch,
-                             action_types: List[str]) -> DetectionBatch:
+                             detections: List[Detection],
+                             action_types: List[str]) -> List[Detection]:
         """
         Filter detections by specific action types.
         
         Args:
-            detections: Input detection batch
+            detections: Input detection list
             action_types: List of action types to keep
             
         Returns:
-            Filtered DetectionBatch
+            Filtered list of detections
         """
-        return self.yolo_module.filter_results(
-            detections, 
-            class_names=action_types
-        )
+        return [det for det in detections if det.class_name in action_types]
     
-    def get_action_counts(self, detections: DetectionBatch) -> Dict[str, int]:
+    def get_action_counts(self, detections: List[Detection]) -> Dict[str, int]:
         """
         Get count of each action type detected.
         
@@ -89,11 +92,14 @@ class ActionDetector:
         Returns:
             Dictionary mapping action types to counts
         """
-        return self.yolo_module.get_class_counts(detections)
+        counts = {}
+        for det in detections:
+            counts[det.class_name] = counts.get(det.class_name, 0) + 1
+        return counts
     
     def plot_actions(self, 
                     image: np.ndarray,
-                    detections: DetectionBatch,
+                    detections: List[Detection],
                     show_labels: bool = True,
                     show_conf: bool = True,
                     line_thickness: int = 2) -> np.ndarray:
@@ -110,7 +116,7 @@ class ActionDetector:
         Returns:
             Annotated image
         """
-        return self.yolo_module.plot_results(
-            image, detections, show_labels, show_conf, line_thickness
-        )
+        # For now, return the original image
+        # TODO: Implement proper plotting without DetectionBatch
+        return image
     

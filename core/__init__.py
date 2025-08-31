@@ -6,8 +6,8 @@ to deep learning models but are used throughout the ML Manager system.
 """
 
 from .data_structures import (
-    Detection, SegmentationDetection, PoseDetection, DetectionBatch,
-    BoundingBox, KeyPoint, GameStateResult
+    Detection, SegmentationDetection, PoseDetection,
+    BoundingBox, KeyPoint, GameStateResult, PlayerKeyPoints
 )
 from .tracking_module import (
     VolleyballTracker, TrackedObject, TrackingConfig, TrackerType
@@ -18,10 +18,10 @@ __all__ = [
     "Detection",
     "SegmentationDetection", 
     "PoseDetection",
-    "DetectionBatch",
     "BoundingBox",
     "KeyPoint",
     "GameStateResult",
+    "PlayerKeyPoints",
     
     # Tracking
     "VolleyballTracker",

@@ -13,9 +13,6 @@ import cv2
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple, Union
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.animation import FuncAnimation
-import seaborn as sns
 from dataclasses import dataclass
 
 from ..core.tracking_module import TrackedObject
@@ -349,8 +346,8 @@ class VolleyballVisualizer:
         
         return result_frame
     
-    def draw_player_poses(self, 
-                          frame: np.ndarray,
+    @staticmethod
+    def draw_player_poses(frame: np.ndarray,
                           pose_data: List[Dict[str, Any]]) -> np.ndarray:
         """
         Draw player pose keypoints on frame.
@@ -396,37 +393,10 @@ class VolleyballVisualizer:
         
         return result_frame
     
-    def create_tracking_animation(self, 
-                                 frames: List[np.ndarray],
-                                 tracking_results: List[List[TrackedObject]],
-                                 game_states: List[str],
-                                 output_path: str = "tracking_animation.mp4",
-                                 fps: int = 30) -> str:
-        """
-        Create an animation video from tracking results.
-        
-        Args:
-            frames: List of input frames
-            tracking_results: List of tracking results for each frame
-            game_states: List of game states for each frame
-            output_path: Output video path
-            fps: Frames per second
-            
-        Returns:
-            Path to created animation
-        """
-        # This is a placeholder for animation creation
-        # In a real implementation, you would use matplotlib.animation or similar
-        
-        print(f"Creating tracking animation to {output_path}")
-        print("Note: Animation creation is not fully implemented in this version")
-        
-        return output_path
-    
-    def create_trajectory_plot(self, 
-                              trajectory: List[Tuple[float, float]],
-                              title: str = "Ball Trajectory",
-                              save_path: Optional[str] = None) -> plt.Figure:
+    @staticmethod
+    def create_trajectory_plot(trajectory: List[Tuple[float, float]],
+                               title: str = "Ball Trajectory",
+                               save_path: Optional[str] = None) -> plt.Figure:
         """
         Create a matplotlib plot of ball trajectory.
         
@@ -487,9 +457,9 @@ class VolleyballVisualizer:
         
         return fig
     
-    def create_tracking_summary(self, 
-                               tracking_stats: Dict[str, Any],
-                               save_path: Optional[str] = None) -> plt.Figure:
+    @staticmethod
+    def create_tracking_summary(tracking_stats: Dict[str, Any],
+                                save_path: Optional[str] = None) -> plt.Figure:
         """
         Create a summary visualization of tracking statistics.
         

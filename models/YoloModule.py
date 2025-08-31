@@ -5,16 +5,16 @@ This module provides a unified interface for different YOLO models while maintai
 the same API for detection, plotting, and result filtering.
 """
 
-import time
-from typing import List, Optional, Union, Tuple
-import numpy as np
 import cv2
+import numpy as np
 from ultralytics import YOLO
-from supervision import BoxAnnotator, MaskAnnotator, KeypointAnnotator
+from typing import List, Optional, Union, Tuple, Dict
+from supervision import BoxAnnotator, MaskAnnotator, VertexAnnotator
 from supervision.detection.core import Detections as SupervisionDetections
 
+from ..utils.logger import logger
 from ..core.data_structures import (
-    Detection, SegmentationDetection, PoseDetection, DetectionBatch,
+    Detection, SegmentationDetection, PoseDetection,
     BoundingBox, KeyPoint
 )
 from ..enums import YOLOModelType
@@ -30,21 +30,18 @@ class YOLOModule:
     
     def __init__(self, 
                  model_path: str,
-                 device: Optional[str] = None,
-                 verbose: bool = False):
+                 device: Optional[str] = None):
         """
         Initialize YOLO module.
         
         Args:
             model_path: Path to YOLO model weights
-            model_type: Type of model (optional, will be auto-detected if None)
             device: Device to run inference on ("cpu", "cuda", etc.)
-            verbose: Whether to print verbose output
         """
         self.model_path = model_path
-        self.verbose = verbose
         
         # Load YOLO model
+        logger.info(f"Loading YOLO model from: {model_path}")
         self.model = YOLO(model_path)
         
         # Automatically determine model_type from YOLO model attributes
@@ -64,6 +61,7 @@ class YOLOModule:
             self.model_type = YOLOModelType.DETECTION  # default fallback
         
         if device:
+            logger.info(f"Moving YOLO model to device: {device}")
             self.model.to(device)
         
         # Initialize annotators based on model type
@@ -79,63 +77,51 @@ class YOLOModule:
         elif self.model_type == YOLOModelType.SEGMENTATION:
             self.annotator = MaskAnnotator()
         elif self.model_type == YOLOModelType.POSE:
-            self.annotator = KeypointAnnotator()
+            self.annotator = VertexAnnotator()
         else:
             self.annotator = BoxAnnotator()
     
     def detect(self, 
-               image: Union[str, np.ndarray, List[str], List[np.ndarray]],
+               image: Union[str, np.ndarray],
                conf_threshold: float = 0.25,
                iou_threshold: float = 0.45,
-               **kwargs) -> DetectionBatch:
+               detector_model: str = "unknown",
+               **kwargs) -> List[Detection]:
         """
-        Perform detection on input image(s).
+        Perform detection on a single frame.
         
         Args:
-            image: Input image(s) - can be path, numpy array, or list of either
+            image: Input image - can be path or numpy array
             conf_threshold: Confidence threshold for detections
             iou_threshold: IoU threshold for NMS
+            detector_model: Name of the detector model for tracking purposes
             **kwargs: Additional arguments for YOLO inference
             
         Returns:
-            DetectionBatch containing detection results
+            List of Detection objects
         """
-        start_time = time.time()
+        logger.debug(f"Running detection with conf={conf_threshold}, iou={iou_threshold}")
         
-        # Run inference
+        # Run inference on single image only
         results = self.model(
             image,
             conf=conf_threshold,
             iou=iou_threshold,
-            verbose=self.verbose,
+            verbose=False,
             **kwargs
         )
         
-        processing_time = time.time() - start_time
-        
-        # Process results
-        if isinstance(image, (str, np.ndarray)):
-            # Single image
-            detections = self._process_single_result(results, image)
-            image_shape = self._get_image_shape(image)
-        else:
-            # Multiple images
-            detections = []
-            image_shape = (0, 0)
-            for i, result in enumerate(results):
-                img = image[i] if isinstance(image, list) else image
-                dets = self._process_single_result(result, img)
-                detections.extend(dets)
-                if i == 0:  # Use first image shape
-                    image_shape = self._get_image_shape(img)
-        
-        return DetectionBatch(
-            detections=detections,
-            image_shape=image_shape,
-            processing_time=processing_time
+        # Process results for single image
+        detections = self._process_single_result(
+            results[0] if isinstance(results, list) else results, 
+            image, 
+            detector_model
         )
+        
+        logger.debug(f"Detection completed. Found {len(detections)} detections")
+        return detections
     
-    def _process_single_result(self, result, image) -> List[Detection]:
+    def _process_single_result(self, result, image, detector_model: str) -> List[Detection]:
         """Process single YOLO result into Detection objects."""
         detections = []
         
@@ -163,6 +149,7 @@ class YOLOModule:
                     confidence=conf,
                     class_id=class_id,
                     class_name=class_name,
+                    model=detector_model,
                     mask=mask
                     )
             elif self.model_type == YOLOModelType.POSE and hasattr(result, 'keypoints'):
@@ -173,6 +160,7 @@ class YOLOModule:
                     confidence=conf,
                     class_id=class_id,
                     class_name=class_name,
+                    model=detector_model,
                     keypoints=keypoints
                     )
             else:
@@ -181,7 +169,8 @@ class YOLOModule:
                     bbox=bbox,
                     confidence=conf,
                     class_id=class_id,
-                    class_name=class_name
+                    class_name=class_name,
+                    model=detector_model
                 )
             
             detections.append(det)
@@ -217,7 +206,7 @@ class YOLOModule:
     
     def plot_results(self, 
                     image: np.ndarray,
-                    detections: DetectionBatch,
+                    detections: List[Detection],
                     show_labels: bool = True,
                     show_conf: bool = True,
                     line_thickness: int = 2) -> np.ndarray:
@@ -234,7 +223,7 @@ class YOLOModule:
         Returns:
             Annotated image
         """
-        if not detections.detections:
+        if not detections:
             return image
         
         # Convert to supervision format
@@ -249,9 +238,9 @@ class YOLOModule:
         
         return annotated_image
     
-    def _to_supervision_format(self, detections: DetectionBatch) -> SupervisionDetections:
-        """Convert DetectionBatch to supervision Detections format."""
-        if not detections.detections:
+    def _to_supervision_format(self, detections: List[Detection]) -> SupervisionDetections:
+        """Convert List[Detection] to supervision Detections format."""
+        if not detections:
             return SupervisionDetections.empty()
         
         # Extract bounding boxes
@@ -259,7 +248,7 @@ class YOLOModule:
         confidences = []
         class_ids = []
         
-        for det in detections.detections:
+        for det in detections:
             bbox = det.bbox
             boxes.append([bbox.x1, bbox.y1, bbox.x2, bbox.y2])
             confidences.append(det.confidence)
@@ -275,7 +264,7 @@ class YOLOModule:
         return supervision_detections
     
     def _get_labels(self, 
-                    detections: DetectionBatch, 
+                    detections: List[Detection], 
                     show_labels: bool, 
                     show_conf: bool) -> List[str]:
         """Generate labels for annotations."""
@@ -283,7 +272,7 @@ class YOLOModule:
             return []
         
         labels = []
-        for det in detections.detections:
+        for det in detections:
             label_parts = []
             
             if show_labels:
@@ -297,36 +286,38 @@ class YOLOModule:
         return labels
     
     def filter_results(self, 
-                      detections: DetectionBatch,
+                      detections: List[Detection],
                       class_names: Optional[List[str]] = None,
                       min_confidence: Optional[float] = None,
-                      max_confidence: Optional[float] = None) -> DetectionBatch:
+                      max_confidence: Optional[float] = None) -> List[Detection]:
         """
         Filter detection results based on criteria.
         
         Args:
-            detections: Input detection batch
+            detections: Input detection list
             class_names: Filter by class names
             min_confidence: Minimum confidence threshold
             max_confidence: Maximum confidence threshold
             
         Returns:
-            Filtered DetectionBatch
+            Filtered list of detections
         """
-        filtered = detections.detections.copy()
+        filtered_detections = detections.copy()
         
         if class_names:
-            filtered = [d for d in filtered if d.class_name in class_names]
+            filtered_detections = [d for d in filtered_detections if d.class_name in class_names]
         
         if min_confidence is not None:
-            filtered = [d for d in filtered if d.confidence >= min_confidence]
+            filtered_detections = [d for d in filtered_detections if d.confidence >= min_confidence]
         
         if max_confidence is not None:
-            filtered = [d for d in filtered if d.confidence <= max_confidence]
+            filtered_detections = [d for d in filtered_detections if d.confidence <= max_confidence]
         
-        return DetectionBatch(
-            detections=filtered,
-            image_shape=detections.image_shape,
-            processing_time=detections.processing_time,
-            metadata=detections.metadata
-        )
+        return filtered_detections
+    
+    def get_class_counts(self, detections: List[Detection]) -> Dict[str, int]:
+        """Get count of each class in detections."""
+        counts = {}
+        for det in detections:
+            counts[det.class_name] = counts.get(det.class_name, 0) + 1
+        return counts

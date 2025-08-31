@@ -25,9 +25,6 @@ except ImportError:
     SORT_AVAILABLE = False
     logging.warning("SORT not available. Install with: pip install sort-python")
 
-from .data_structures import DetectionObject
-
-
 class TrackerType(Enum):
     """Available tracking algorithms."""
     NORFAIR = "norfair"
@@ -134,7 +131,7 @@ class VolleyballTracker:
             print("Using custom tracking logic")
     
     def update(self, 
-               detections: List[DetectionObject],
+               detections: List[Detection],
                frame: np.ndarray,
                frame_number: int) -> List[TrackedObject]:
         """
@@ -170,7 +167,7 @@ class VolleyballTracker:
         
         return list(self.tracked_objects.values())
     
-    def _update_norfair(self, detections: List[DetectionObject]) -> List[TrackedObject]:
+    def _update_norfair(self, detections: List[Detection]) -> List[TrackedObject]:
         """Update tracking using Norfair."""
         if not NORFAIR_AVAILABLE:
             return []
@@ -209,7 +206,7 @@ class VolleyballTracker:
         
         return result
     
-    def _update_sort(self, detections: List[DetectionObject]) -> List[TrackedObject]:
+    def _update_sort(self, detections: List[Detection]) -> List[TrackedObject]:
         """Update tracking using SORT."""
         if not SORT_AVAILABLE:
             return []
@@ -250,7 +247,7 @@ class VolleyballTracker:
         
         return result
     
-    def _update_custom(self, detections: List[DetectionObject]) -> List[TrackedObject]:
+    def _update_custom(self, detections: List[Detection]) -> List[TrackedObject]:
         """Update tracking using custom logic."""
         # Simple custom tracking based on IoU and distance
         tracked_objects = []
@@ -312,8 +309,8 @@ class VolleyballTracker:
     
     def _update_volleyball_tracking(self, 
                                   tracked_objects: List[TrackedObject],
-                                  ball_detections: List[DetectionObject],
-                                  player_detections: List[DetectionObject]):
+                                  ball_detections: List[Detection],
+                                  player_detections: List[Detection]):
         """Update volleyball-specific tracking state."""
         # Update ball tracks
         for obj in tracked_objects:

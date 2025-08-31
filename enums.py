@@ -31,7 +31,7 @@ class GameState(StrEnum):
     
     PLAY = "play"
     NO_PLAY = "no_play"
-    CHALLENGE = "challenge"
+    SERVE = "serve"
     UNKNOWN = "unknown"
 
 
@@ -44,3 +44,13 @@ class VolleyballAction(StrEnum):
     SERVICE = "service"
     SETTER = "setter"
     UNKNOWN = "unknown"
+
+
+class DetectorModel(StrEnum):
+    """String enum for detector model names."""
+    
+    BALL_DETECTOR = "ball_detector"
+    PLAYER_DETECTOR = "player_detector" 
+    ACTION_DETECTOR = "action_detector"
+    COURT_DETECTOR = "court_detector"
+    GAME_STATE_DETECTOR = "game_state_detector"
