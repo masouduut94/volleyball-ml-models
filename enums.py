@@ -30,8 +30,8 @@ class GameState(StrEnum):
     """String enum for game states."""
     
     PLAY = "play"
-    NO_PLAY = "no_play"
-    SERVE = "serve"
+    NO_PLAY = "no-play"
+    SERVICE = "service"
     UNKNOWN = "unknown"
 
 

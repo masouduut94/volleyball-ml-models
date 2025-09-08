@@ -68,7 +68,7 @@ class PlayerDetectorModule:
         detections = self.yolo_module.detect(
             image, 
             conf_threshold, 
-            iou_threshold, 
+            iou_threshold,
             detector_model=DetectorModel.PLAYER_DETECTOR.value,
             **kwargs
         )

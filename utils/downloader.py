@@ -24,10 +24,10 @@ WEIGHTS_ZIP_DRIVE_ID = "1__zkTmGwZo2z0EgbJvC14I_3kOpgQx3o"
 
 # Expected file paths for each model
 MODEL_PATHS = {
-    "ball_detection": "weights/ball/weights/best.pt",
-    "action_detection": "weights/action/weights/best.pt", 
-    "court_detection": "weights/court/weights/best.pt",
-    "game_state": "weights/game_state/"
+    "ball_detection": "ball/weights/best.pt",
+    "action_detection": "action/weights/best.pt",
+    "court_detection": "court/weights/best.pt",
+    "game_state": "game_state/"
 }
 
 
@@ -66,11 +66,7 @@ def extract_drive_id(url: str) -> Optional[str]:
     return None
 
 
-def download_from_google_drive(
-    file_id: str, 
-    output_path: Union[str, Path],
-    quiet: bool = False
-) -> bool:
+def download_from_google_drive(file_id: str, output_path: Union[str, Path], quiet: bool = False) -> bool:
     """
     Download a file from Google Drive using its file ID.
     
@@ -109,11 +105,8 @@ def download_from_google_drive(
         return False
 
 
-def download_all_models(
-    weights_dir: Optional[Union[str, Path]] = None,
-    force_download: bool = False,
-    quiet: bool = False
-) -> bool:
+def download_all_models(weights_dir: Optional[Union[str, Path]] = None, force_download: bool = False,
+                        quiet: bool = False) -> bool:
     """
     Download all model weights from the complete ZIP file.
     
@@ -196,7 +189,7 @@ def check_model_weights(weights_dir: Optional[Union[str, Path]] = None) -> Dict[
         Dictionary mapping model names to availability status
     """
     if weights_dir is None:
-        weights_dir = Path.cwd() / "weights"
+        weights_dir = Path.cwd()
     else:
         weights_dir = Path(weights_dir)
     

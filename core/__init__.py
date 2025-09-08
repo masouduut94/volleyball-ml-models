@@ -10,7 +10,7 @@ from .data_structures import (
     BoundingBox, KeyPoint, GameStateResult, PlayerKeyPoints
 )
 from .tracking_module import (
-    VolleyballTracker, TrackedObject, TrackingConfig, TrackerType
+    VolleyballTracker, TrackedObject, TrackingConfig
 )
 
 __all__ = [
@@ -26,6 +26,5 @@ __all__ = [
     # Tracking
     "VolleyballTracker",
     "TrackedObject", 
-    "TrackingConfig",
-    "TrackerType"
+    "TrackingConfig"
 ]

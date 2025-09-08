@@ -11,9 +11,6 @@ import numpy as np
 import cv2
 from transformers import VideoMAEImageProcessor, VideoMAEForVideoClassification
 import torch
-from torchvision.transforms import Compose, Lambda
-from pytorchvideo.transforms import UniformTemporalSubsample
-from torchvision.transforms._functional_video import normalize
 
 from ..enums import GameState
 from ..core.data_structures import GameStateResult
@@ -32,9 +29,7 @@ class GameStatusClassifierModule:
                  model_path: str,
                  device: Optional[str] = None,
                  num_frames: int = 16,
-                 resize_to: int = 224,
-                 mean: Tuple[float] = (0.485, 0.456, 0.406),
-                 std: Tuple[float] = (0.229, 0.224, 0.225)):
+                 resize_to: int = 224):
         """
         Initialize game status classifier.
 
@@ -43,18 +38,14 @@ class GameStatusClassifierModule:
             device: Device to run inference on
             num_frames: Number of frames to use for classification
             resize_to: Spatial size to resize frames to (height, width)
-            mean: Mean values for normalization
-            std: Standard deviation values for normalization
         """
         self.model_path = model_path
         self.num_frames = num_frames
         self.resize_to = resize_to
-        self.mean = mean
-        self.std = std
         self.class_to_gamestate = {
             "play": GameState.PLAY,
-            "no_play": GameState.NO_PLAY,
-            "serve": GameState.SERVE,
+            "no-play": GameState.NO_PLAY,
+            "service": GameState.SERVICE,
         }
         logger.info(f"Initializing GameStatusClassifier with model: {model_path}")
 
@@ -64,10 +55,7 @@ class GameStatusClassifierModule:
         else:
             self.device = device
 
-        # Initialize the transform pipeline
-        self._setup_transforms()
-
-        # Load model (without the processor since we're handling preprocessing ourselves)
+        # Load model and processor
         self._load_model()
 
         # Common volleyball game states
@@ -76,25 +64,11 @@ class GameStatusClassifierModule:
             "game_over", "celebration", "substitution"
         ]
 
-    def _setup_transforms(self):
-        """Setup the video transformation pipeline."""
-        self.vid_transforms = Compose([
-            UniformTemporalSubsample(self.num_frames),
-            Lambda(lambda x: x / 255.0),  # Scale to [0, 1]
-            Lambda(lambda x: normalize(x, self.mean, self.std)),  # Normalize
-            # Resize would go here if needed, but we're handling it separately per-frame
-        ])
-        logger.debug("Video transforms pipeline initialized")
-
     def _load_model(self):
-        """Load VideoMAE model (without the processor)."""
+        """Load VideoMAE model and processor."""
         try:
-            # Load model without the processor since we're handling preprocessing
-            self.model = VideoMAEForVideoClassification.from_pretrained(
-                self.model_path,
-                torch_dtype=torch.float16,
-                ignore_mismatched_sizes=True  # In case preprocessing differs
-            )
+            self.processor = VideoMAEImageProcessor.from_pretrained(self.model_path)
+            self.model = VideoMAEForVideoClassification.from_pretrained(self.model_path, dtype=torch.float16)
             self.model.to(self.device)
             self.model.eval()
 
@@ -106,6 +80,7 @@ class GameStatusClassifierModule:
     def _preprocess_frames(self, frames: List[np.ndarray]) -> List[np.ndarray]:
         """
         Preprocess individual frames: convert BGR to RGB and resize.
+        This prepares the frames for the VideoMAEImageProcessor.
 
         Args:
             frames: List of frames as numpy arrays in BGR format
@@ -125,9 +100,34 @@ class GameStatusClassifierModule:
                 logger.warning("[ERR] Frame is None!")
         return processed_frames
 
-    def _preprocess(self, frames: List[np.ndarray]) -> torch.Tensor:
+    def _select_frames(self, frames: List[np.ndarray]) -> List[np.ndarray]:
         """
-        Full preprocessing pipeline for VideoMAE model input using the custom transform pipeline.
+        Apply uniform temporal subsampling to select the desired number of frames.
+
+        Args:
+            frames: List of preprocessed frames
+
+        Returns:
+            List of selected frames for processing
+        """
+        if len(frames) <= self.num_frames:
+            # If we have fewer frames than required, use all available frames
+            return frames
+        else:
+            # Calculate step size to evenly distribute frame selection (UniformTemporalSubsample)
+            step = (len(frames) - 1) / (self.num_frames - 1)
+            selected_frames = []
+
+            for i in range(self.num_frames):
+                frame_idx = int(round(i * step))
+                frame_idx = min(frame_idx, len(frames) - 1)  # Ensure we don't go out of bounds
+                selected_frames.append(frames[frame_idx])
+
+            return selected_frames
+
+    def _preprocess(self, frames: List[np.ndarray]) -> Dict[str, torch.Tensor]:
+        """
+        Full preprocessing pipeline for VideoMAE model input.
 
         Args:
             frames: List of frames as numpy arrays (BGR format)
@@ -143,45 +143,38 @@ class GameStatusClassifierModule:
         # Step 1: Preprocess individual frames (color conversion + resize)
         processed_frames = self._preprocess_frames(frames)
 
-        # Step 2: Convert to tensor and rearrange dimensions
-        # Stack frames and convert to tensor: [T, H, W, C] -> [T, C, H, W]
-        video_tensor = torch.tensor(np.stack(processed_frames)).float()
-        video_tensor = video_tensor.permute(0, 3, 1, 2)  # [T, H, W, C] -> [T, C, H, W]
+        # Step 2: Apply temporal subsampling
+        selected_frames = self._select_frames(processed_frames)
 
-        # Add batch dimension: [T, C, H, W] -> [1, T, C, H, W]
-        video_tensor = video_tensor.unsqueeze(0)
+        logger.debug(f"Selected {len(selected_frames)} frames after subsampling")
 
-        # Step 3: Apply the transform pipeline (UniformTemporalSubsample + Normalization)
-        processed_video = self.vid_transforms(video_tensor)
+        # Step 3: Process with VideoMAE processor (handles normalization, etc.)
+        # The processor expects a list of frames in RGB format
+        inputs = self.processor(
+            selected_frames,  # Pass the list of selected, preprocessed frames
+            return_tensors="pt"
+        )
 
-        # The model expects [batch_size, num_channels, num_frames, height, width]
-        # Our processed_video is [1, C, T, H, W], but the model might expect [1, T, C, H, W]
-        # Check what the specific model expects and permute if necessary
-        # For VideoMAE, it typically expects [batch_size, num_frames, num_channels, height, width]
-        processed_video = processed_video.permute(0, 2, 1, 3, 4)  # [1, C, T, H, W] -> [1, T, C, H, W]
+        # Move inputs to device
+        inputs = {k: v.to(self.device).half() for k, v in inputs.items()}
 
-        logger.debug(f"Final tensor shape: {processed_video.shape}")
+        return inputs
 
-        return processed_video
-
-    def _infer(self, preprocessed_input: torch.Tensor) -> Tuple[GameState, float]:
+    def _infer(self, preprocessed_inputs: Dict[str, torch.Tensor]) -> Tuple[GameState, float]:
         """
         Run inference on preprocessed inputs.
 
         Args:
-            preprocessed_input: Preprocessed tensor from _preprocess method
+            preprocessed_inputs: Preprocessed tensor from preprocess_frames method
 
         Returns:
             Tuple of (predicted_game_state, confidence)
         """
         logger.debug("Running VideoMAE inference")
 
-        # Move input to device
-        preprocessed_input = preprocessed_input.to(self.device)
-
         # Run inference
         with torch.no_grad():
-            outputs = self.model(pixel_values=preprocessed_input)
+            outputs = self.model(**preprocessed_inputs)
             logits = outputs.logits
 
         # Get predictions
@@ -213,11 +206,11 @@ class GameStatusClassifierModule:
             return GameStateResult(predicted_class=GameState.UNKNOWN, confidence=0.0)
 
         try:
-            # Preprocess frames using our custom pipeline
-            preprocessed_input = self._preprocess(frames)
+            # Preprocess frames
+            preprocessed_inputs = self._preprocess(frames)
 
             # Run inference
-            game_state, confidence = self._infer(preprocessed_input)
+            game_state, confidence = self._infer(preprocessed_inputs)
 
             return GameStateResult(predicted_class=game_state, confidence=confidence)
 
@@ -238,8 +231,6 @@ class GameStatusClassifierModule:
             'device': self.device,
             'num_frames': self.num_frames,
             'resize_to': self.resize_to,
-            'mean': self.mean,
-            'std': self.std,
             'available_classes': list(self.model.config.id2label.values()) if hasattr(self.model, 'config') else [],
             'game_states': self.game_states
         }

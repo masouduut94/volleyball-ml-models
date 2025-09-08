@@ -33,8 +33,11 @@ court_mask = manager.segment_court(frame)
 
 ```bash
 # Install dependencies
-pip install torch torchvision ultralytics transformers pytorchvideo
-pip install opencv-python pillow numpy pydantic pyyaml gdown
+pip install torch torchvision ultralytics transformers opencv-python pillow numpy pydantic pyyaml gdown
+
+# Fix PyTorchVideo compatibility (IMPORTANT!)
+pip uninstall pytorchvideo -y
+pip install git+https://github.com/facebookresearch/pytorchvideo
 
 # Or install from pyproject.toml
 pip install -e .
@@ -210,6 +213,48 @@ black .
 isort .
 flake8 .
 ```
+
+## 🆘 Troubleshooting
+
+### Common Issues
+
+1. **🎯 PyTorchVideo Compatibility Error** (⚡ **EASIEST SOLUTION**)
+   ```
+   ModuleNotFoundError: No module named 'torchvision.transforms.functional_tensor'
+   ```
+   
+   **💡 Quick Fix** (Recommended):
+   ```bash
+   # Uninstall old pytorchvideo
+   pip uninstall pytorchvideo -y
+   
+   # Install latest version from GitHub (fixes compatibility)
+   pip install git+https://github.com/facebookresearch/pytorchvideo
+   ```
+   
+   **📝 Alternative Manual Fix**:
+   If you encounter this error in your own code, replace:
+   ```python
+   import torchvision.transforms.functional_tensor as F_t
+   ```
+   with:
+   ```python
+   import torchvision.transforms.functional as F_t
+   ```
+
+2. **🎯 Model Weights Missing**
+   - Check internet connection for auto-download
+   - Verify weights directory structure
+   - Try manual download using `download_all_models()`
+
+3. **🐍 Import Errors**
+   ```bash
+   # Reinstall dependencies
+   pip install -e .
+   
+   # Or check specific imports
+   python -c "from ml_manager import MLManager; print('Success!')"
+   ```
 
 ## 📄 License
 

@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from dataclasses import dataclass
 
 from ..core.tracking_module import TrackedObject
-from ..core.data_structures import DetectionObject
+from ..core.data_structures import Detection
 
 
 @dataclass
@@ -97,7 +97,7 @@ class VolleyballVisualizer:
     
     def draw_detections(self, 
                        frame: np.ndarray,
-                       detections: List[DetectionObject],
+                       detections: List[Detection],
                        show_labels: bool = True) -> np.ndarray:
         """
         Draw detection bounding boxes on frame.
@@ -113,9 +113,9 @@ class VolleyballVisualizer:
         result_frame = frame.copy()
         
         for detection in detections:
-            bbox = detection.get('bbox', [0, 0, 0, 0])
-            class_name = detection.get('name', 'unknown')
-            confidence = detection.get('confidence', 0.0)
+            bbox = detection.bbox
+            class_name = detection.class_name
+            confidence = detection.confidence
             
             # Get color based on class
             if class_name == 'ball':
@@ -126,7 +126,7 @@ class VolleyballVisualizer:
                 color = self.config.action_colors.get(class_name, self.config.action_colors['unknown'])
             
             # Draw bounding box
-            x1, y1, x2, y2 = map(int, bbox)
+            x1, y1, x2, y2 = map(int, [bbox.x1, bbox.y1, bbox.x2, bbox.y2])
             cv2.rectangle(result_frame, (x1, y1), (x2, y2), color, self.config.line_thickness)
             
             # Draw label

@@ -144,7 +144,7 @@ Thumbs.db
 *.ckpt
 *.safetensors
 checkpoint/
-weights/
+../../weights/
 
 # Temporary files
 *.tmp

@@ -7,6 +7,7 @@ for volleyball analytics without requiring external configuration files.
 
 import torch
 import numpy as np
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Union, Tuple
 
 # Import model classes
@@ -160,11 +161,13 @@ class MLManager:
         """Initialize action detection model."""
         try:
             if self.weights_config.action_detection:
+                # Convert to absolute path
+                model_path = Path.cwd() / self.weights_config.action_detection
                 self.action_detector = ActionDetectorModule(
-                    model_path=self.weights_config.action_detection,
+                    model_path=str(model_path),
                     device=self.device
                 )
-                logger.success(f"Action detection model loaded: {self.weights_config.action_detection}")
+                logger.success(f"Action detection model loaded: {model_path}")
             else:
                 self.action_detector = None
                 logger.warning("Action detection model not configured")
@@ -176,11 +179,13 @@ class MLManager:
         """Initialize ball segmentation model."""
         try:
             if self.weights_config.ball_detection:
+                # Convert to absolute path
+                model_path = Path.cwd() / self.weights_config.ball_detection
                 self.ball_detector = BallDetectorModule(
-                    model_path=self.weights_config.ball_detection,
+                    model_path=str(model_path),
                     device=self.device
                 )
-                logger.success(f"Ball segmentation model loaded: {self.weights_config.ball_detection}")
+                logger.success(f"Ball segmentation model loaded: {model_path}")
             else:
                 self.ball_detector = None
                 logger.warning("Ball segmentation model not configured")
@@ -192,11 +197,13 @@ class MLManager:
         """Initialize court segmentation model."""
         try:
             if self.weights_config.court_detection:
+                # Convert to absolute path
+                model_path = Path.cwd() / self.weights_config.court_detection
                 self.court_detector = CourtSegmentationModule(
-                    model_path=self.weights_config.court_detection,
+                    model_path=str(model_path),
                     device=self.device
                 )
-                logger.success(f"Court segmentation model loaded: {self.weights_config.court_detection}")
+                logger.success(f"Court segmentation model loaded: {model_path}")
             else:
                 self.court_detector = None
                 logger.warning("Court segmentation model not configured")
@@ -208,12 +215,13 @@ class MLManager:
         """Initialize player keypoint detection model."""
         try:
             if self.weights_config.player_detection:
-                # Use custom player keypoint detection model
+                # Use custom player keypoint detection model with absolute path
+                model_path = Path.cwd() / self.weights_config.player_detection
                 self.player_detector = PlayerDetectorModule(
-                    model_path=self.weights_config.player_detection,
+                    model_path=str(model_path),
                     device=self.device
                 )
-                logger.success(f"Custom player keypoint detection model loaded: {self.weights_config.player_detection}")
+                logger.success(f"Custom player keypoint detection model loaded: {model_path}")
             else:
                 # Use default YOLO pose estimation model
                 self.player_detector = PlayerDetectorModule(
@@ -228,11 +236,11 @@ class MLManager:
     def _init_tracking(self):
         """Initialize tracking module."""
         try:
-            from .core.tracking_module import TrackingConfig, TrackerType
+            from .core.tracking_module import TrackingConfig
 
             # Initialize with default configuration
             self.tracker = VolleyballTracker(
-                config=TrackingConfig(tracker_type=TrackerType.NORFAIR)
+                config=TrackingConfig()
             )
             logger.success("Tracking module initialized successfully")
         except Exception as e:
@@ -252,11 +260,12 @@ class MLManager:
         """Initialize game state classification model."""
         try:
             if self.weights_config.game_status:
+                model_path = Path.cwd() / self.weights_config.game_status
                 self.game_state_detector = GameStatusClassifierModule(
-                    model_path=self.weights_config.game_status,
+                    model_path=model_path.as_posix(),
                     device=self.device
                 )
-                logger.success(f"Game state classification model loaded: {self.weights_config.game_status}")
+                logger.success(f"Game state classification model loaded: {model_path}")
             else:
                 self.game_state_detector = None
                 logger.warning("Game state classification model not configured")
@@ -343,7 +352,7 @@ class MLManager:
     def detect_ball(self,
                     frame: np.ndarray,
                     conf_threshold: float = 0.25,
-                    iou_threshold: float = 0.45) -> List[Detection]:
+                    iou_threshold: float = 0.45) -> Detection:
         """
         Detect ball in a frame using segmentation.
         
@@ -417,7 +426,7 @@ class MLManager:
     def detect_all(self,
                    frame: np.ndarray,
                    conf_threshold: float = 0.25,
-                   iou_threshold: float = 0.45) -> Tuple[List[Detection], List[Detection], List[PlayerKeyPoints]]:
+                   iou_threshold: float = 0.45) -> Tuple[List[Detection], Detection, List[PlayerKeyPoints]]:
         """
         Detect all objects (actions, ball, players) in a single frame.
         
@@ -436,7 +445,7 @@ class MLManager:
             Court segmentation is not included as it's typically done once per video, not per frame.
         """
         action_detections = []
-        ball_detections = []
+        ball_detection = None
         player_keypoints = []
 
         # Detect actions
@@ -450,7 +459,7 @@ class MLManager:
         # Detect ball
         if self.ball_detector is not None:
             try:
-                ball_detections = self.detect_ball(frame, conf_threshold=conf_threshold, iou_threshold=iou_threshold)
+                ball_detection = self.detect_ball(frame, conf_threshold=conf_threshold, iou_threshold=iou_threshold)
             except Exception as e:
                 logger.warning(f"Ball detection failed: {e}")
 
@@ -462,19 +471,17 @@ class MLManager:
             except Exception as e:
                 logger.warning(f"Player detection failed: {e}")
 
-        return action_detections, ball_detections, player_keypoints
+        return action_detections, ball_detection, player_keypoints
 
     # Tracking Methods
     def track_objects(self,
-                      frame: np.ndarray,
-                      detections: List[Dict[str, Any]],
+                      detections: List[Any],
                       frame_number: int) -> List[Dict[str, Any]]:
         """
         Track objects across frames.
         
         Args:
-            frame: Current frame
-            detections: List of detection objects
+            detections: List of Norfair Detection objects
             frame_number: Current frame number
             
         Returns:
@@ -483,7 +490,7 @@ class MLManager:
         if self.tracker is None:
             raise RuntimeError("Tracking module not available")
 
-        return self.tracker.update(detections, frame, frame_number)
+        return self.tracker.update(detections, frame_number)
 
     def get_tracking_stats(self) -> Dict[str, Any]:
         """
@@ -709,9 +716,6 @@ class MLManager:
     def cleanup(self):
         """Clean up model resources."""
         # YOLO models are automatically cleaned up
-        # VideoMAE models need explicit cleanup
-        if hasattr(self, 'game_state_detector') and self.game_state_detector is not None:
-            self.game_state_detector.cleanup()
 
         # Clean up tracker
         if hasattr(self, 'tracker') and self.tracker is not None:

@@ -252,7 +252,6 @@ class SegmentationDetection(Detection):
 
     def __post_init__(self):
         """Convert numpy array to list for JSON serialization."""
-        super().__post_init__()
         if isinstance(self.mask, np.ndarray):
             self.mask = self.mask.tolist()
 
