@@ -16,9 +16,39 @@ from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from typing import Dict, Any, List, Tuple, Optional
 
 import pytorchvideo.data
-from torchvision.transforms import Compose, Lambda, Resize
-from pytorchvideo.transforms import ApplyTransformToKey, UniformTemporalSubsample, Normalize
+from torchvision.transforms import Compose, Lambda, Resize, Normalize
+# from pytorchvideo.transforms import ApplyTransformToKey, UniformTemporalSubsample, Normalize
 from transformers import VideoMAEForVideoClassification, VideoMAEImageProcessor
+
+
+class ApplyTransformToKey:
+    def __init__(self, key, transform):
+        self.key = key
+        self.transform = transform
+
+    def __call__(self, sample):
+        sample[self.key] = self.transform(sample[self.key])
+        return sample
+
+
+class UniformTemporalSubsample:
+    def __init__(self, num_samples):
+        self.num_samples = num_samples
+
+    def __call__(self, video):
+        # video shape: (C, T, H, W)
+        t = video.shape[1]
+
+        if t == self.num_samples:
+            return video
+
+        indices = torch.linspace(
+            0,
+            t - 1,
+            self.num_samples
+        ).long()
+
+        return video[:, indices]
 
 
 def compute_videomae_metrics(pred, class_labels: List[str]) -> Dict[str, float]:
@@ -42,7 +72,7 @@ def compute_videomae_metrics(pred, class_labels: List[str]) -> Dict[str, float]:
     # Create confusion matrix
     cm = confusion_matrix(pred.label_ids, predictions)
     df_cfm = pd.DataFrame(cm, index=class_labels, columns=class_labels)
-    
+
     # Save confusion matrix plot
     plt.figure(figsize=(10, 7))
     cfm_plot = sn.heatmap(df_cfm, annot=True, cmap='Blues', fmt='g')
@@ -64,6 +94,7 @@ def create_videomae_collate_fn():
     Returns:
         Collate function for data batching
     """
+
     def collate_fn(examples):
         """The collation function to be used by `Trainer` to prepare data batches."""
         # permute to (num_frames, num_channels, height, width)
@@ -72,14 +103,14 @@ def create_videomae_collate_fn():
         )
         labels = torch.tensor([example["label"] for example in examples])
         return {"pixel_values": pixel_values, "labels": labels}
-    
+
     return collate_fn
 
 
 def create_videomae_transforms(
-    feature_extractor: VideoMAEImageProcessor,
-    num_frames: int,
-    resize_to: Tuple[int, int] = (224, 224)
+        feature_extractor: VideoMAEImageProcessor,
+        num_frames: int,
+        resize_to: Tuple[int, int] = (224, 224)
 ) -> Tuple[Any, Any]:
     """
     Create training and validation transforms for VideoMAE.
@@ -128,15 +159,15 @@ def create_videomae_transforms(
             ),
         ]
     )
-    
+
     return train_transform, val_transform
 
 
 def create_videomae_datasets(
-    data_path: str,
-    num_frames: int,
-    sample_rate: int = 3,
-    fps: int = 30
+        data_path: str,
+        num_frames: int,
+        sample_rate: int = 3,
+        fps: int = 30
 ) -> Tuple[Any, Any, List[str], Dict[str, int], Dict[int, str]]:
     """
     Create VideoMAE training and validation datasets.
@@ -157,7 +188,7 @@ def create_videomae_datasets(
     video_count_train = len(train_files)
     video_count_val = len(test_files)
     video_total = video_count_train + video_count_val
-    
+
     print(f"Total videos: {video_total}")
     print(f"Training videos: {video_count_train}")
     print(f"Validation videos: {video_count_val}")
@@ -191,14 +222,14 @@ def create_videomae_datasets(
         decode_audio=False,
         transform=val_transform,
     )
-    
+
     return train_dataset, val_dataset, class_labels, label2id, id2label
 
 
 def create_videomae_model(
-    model_name: str,
-    label2id: Dict[str, int],
-    id2label: Dict[int, str]
+        model_name: str,
+        label2id: Dict[str, int],
+        id2label: Dict[int, str]
 ) -> Tuple[VideoMAEForVideoClassification, VideoMAEImageProcessor]:
     """
     Create VideoMAE model and processor.
@@ -218,23 +249,23 @@ def create_videomae_model(
         id2label=id2label,
         ignore_mismatched_sizes=True,
     )
-    
+
     return model, processor
 
 
 def create_yolo_training_args(
-    model_size: str = "n",
-    task: str = "detect",
-    data_yaml: str = "",
-    epochs: int = 100,
-    batch_size: int = 32,
-    imgsz: int = 640,
-    device: str = "0",
-    optimizer: str = "AdamW",
-    learning_rate: float = 0.001,
-    final_lr_factor: float = 0.01,
-    workers: int = 16,
-    **kwargs
+        model_size: str = "n",
+        task: str = "detect",
+        data_yaml: str = "",
+        epochs: int = 100,
+        batch_size: int = 32,
+        imgsz: int = 640,
+        device: str = "0",
+        optimizer: str = "AdamW",
+        learning_rate: float = 0.001,
+        final_lr_factor: float = 0.01,
+        workers: int = 16,
+        **kwargs
 ) -> Dict[str, Any]:
     """
     Create YOLO training arguments.
@@ -272,7 +303,7 @@ def create_yolo_training_args(
         'seed': 1368,
         **kwargs
     }
-    
+
     return args
 
 
@@ -287,29 +318,29 @@ def validate_dataset_path(data_path: str) -> bool:
         True if valid, False otherwise
     """
     path = Path(data_path)
-    
+
     if not path.exists():
         print(f"Dataset path does not exist: {data_path}")
         return False
-    
+
     # Check for YOLO dataset structure
     if (path / "images").exists() and (path / "labels").exists():
         train_images = list((path / "images" / "train").glob("*.jpg")) + list((path / "images" / "train").glob("*.png"))
         val_images = list((path / "images" / "val").glob("*.jpg")) + list((path / "images" / "val").glob("*.png"))
-        
+
         if len(train_images) > 0 and len(val_images) > 0:
             print(f"YOLO dataset found: {len(train_images)} training, {len(val_images)} validation images")
             return True
-    
+
     # Check for VideoMAE dataset structure
     if (path / "train").exists() and (path / "test").exists():
         train_videos = list((path / "train").rglob("*.mp4")) + list((path / "train").rglob("*.avi"))
         test_videos = list((path / "test").rglob("*.mp4")) + list((path / "test").rglob("*.avi"))
-        
+
         if len(train_videos) > 0 and len(test_videos) > 0:
             print(f"VideoMAE dataset found: {len(train_videos)} training, {len(test_videos)} test videos")
             return True
-    
+
     print(f"Dataset structure not recognized at: {data_path}")
     return False
 
@@ -325,13 +356,13 @@ def save_training_results(results: Dict[str, Any], output_dir: str, model_name: 
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Save results to JSON
     import json
     results_file = output_path / f"{model_name}_results.json"
     with open(results_file, 'w') as f:
         json.dump(results, f, indent=2, default=str)
-    
+
     print(f"Training results saved to: {results_file}")
 
 
@@ -355,22 +386,22 @@ def get_optimal_batch_size(model_size: str, task: str, device: str = "0") -> int
         'l': 8,
         'x': 4
     }
-    
+
     # Adjust for different tasks
     task_multipliers = {
         'detect': 1.0,
         'segment': 0.75,
         'pose': 0.5
     }
-    
+
     base_batch = base_batch_sizes.get(model_size, 16)
     multiplier = task_multipliers.get(task, 1.0)
-    
+
     # Adjust for device
     if device == "cpu":
         multiplier *= 0.5
-    
+
     optimal_batch = int(base_batch * multiplier)
-    
+
     print(f"Recommended batch size for YOLOv8{model_size} {task}: {optimal_batch}")
     return optimal_batch

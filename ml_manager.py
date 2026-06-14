@@ -114,10 +114,10 @@ class MLManager:
         # Initialize YOLO models
         # Auto-download weights if they don't exist
         self._auto_download_weights()
-        self._init_action_detection()
         self._init_ball_segmentation()
         self._init_court_segmentation()
         self._init_player_detection()
+        self._init_action_detection()
 
         # Initialize tracking module
         self._init_tracking()

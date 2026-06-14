@@ -18,9 +18,8 @@ except ImportError:
 
 from .logger import logger
 
-
 # Google Drive file ID for the complete weights ZIP file
-WEIGHTS_ZIP_DRIVE_ID = "1__zkTmGwZo2z0EgbJvC14I_3kOpgQx3o"
+WEIGHTS_ZIP_DRIVE_ID = "1AVc5DrM7tJuRxVJA7EJ6QSkg-ZLHBiRQ"
 
 # Expected file paths for each model
 MODEL_PATHS = {
@@ -44,10 +43,10 @@ def extract_drive_id(url: str) -> Optional[str]:
     # Direct file ID
     if len(url) == 33 and not url.startswith('http'):
         return url
-    
+
     # Parse different Google Drive URL formats
     parsed = urlparse(url)
-    
+
     # Format: https://drive.google.com/file/d/FILE_ID/view
     if 'drive.google.com' in parsed.netloc and '/file/d/' in parsed.path:
         parts = parsed.path.split('/')
@@ -56,13 +55,13 @@ def extract_drive_id(url: str) -> Optional[str]:
             return parts[file_id_index]
         except (ValueError, IndexError):
             pass
-    
+
     # Format: https://drive.google.com/open?id=FILE_ID
     if 'drive.google.com' in parsed.netloc and parsed.path == '/open':
         query_params = parse_qs(parsed.query)
         if 'id' in query_params:
             return query_params['id'][0]
-    
+
     return None
 
 
@@ -83,23 +82,23 @@ def download_from_google_drive(file_id: str, output_path: Union[str, Path], quie
             "gdown is required for downloading from Google Drive. "
             "Install it with: pip install gdown"
         )
-    
+
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     try:
         logger.info(f"Downloading from Google Drive (ID: {file_id}) to {output_path}")
-        
+
         # Download file
         gdown.download(id=file_id, output=str(output_path), quiet=quiet)
-        
+
         if not output_path.exists():
             logger.error(f"Download failed: {output_path} does not exist")
             return False
-            
+
         logger.info(f"Successfully downloaded to {output_path}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Failed to download from Google Drive: {e}")
         return False
@@ -122,20 +121,20 @@ def download_all_models(weights_dir: Optional[Union[str, Path]] = None, force_do
         weights_dir = Path.cwd() / "weights"
     else:
         weights_dir = Path(weights_dir)
-    
+
     # Check if all models already exist
     if not force_download:
         existing_models = check_model_weights(weights_dir)
         if all(existing_models.values()):
             logger.info("All model weights already exist")
             return True
-    
+
     # Create weights directory
     weights_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Download ZIP file
     zip_path = weights_dir / "all_weights.zip"
-    
+
     try:
         logger.info("Downloading complete weights ZIP file from Google Drive...")
         success = download_from_google_drive(
@@ -143,25 +142,25 @@ def download_all_models(weights_dir: Optional[Union[str, Path]] = None, force_do
             output_path=zip_path,
             quiet=quiet
         )
-        
+
         if not success:
             logger.error("Failed to download weights ZIP file")
             return False
-        
+
         # Extract ZIP file
         logger.info(f"Extracting weights to {weights_dir}")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(weights_dir)
-        
+
         # Remove ZIP file after extraction
         zip_path.unlink()
         logger.info("ZIP file extracted and removed")
-        
+
         # Verify extraction
         extracted_models = check_model_weights(weights_dir)
         successful_extractions = sum(extracted_models.values())
         total_models = len(extracted_models)
-        
+
         if successful_extractions == total_models:
             logger.success(f"Successfully extracted all {total_models} models")
             return True
@@ -169,7 +168,7 @@ def download_all_models(weights_dir: Optional[Union[str, Path]] = None, force_do
             missing = [name for name, exists in extracted_models.items() if not exists]
             logger.warning(f"Some models missing after extraction: {missing}")
             return False
-            
+
     except Exception as e:
         logger.error(f"Failed to download/extract weights ZIP: {e}")
         # Clean up partial download
@@ -189,22 +188,27 @@ def check_model_weights(weights_dir: Optional[Union[str, Path]] = None) -> Dict[
         Dictionary mapping model names to availability status
     """
     if weights_dir is None:
-        weights_dir = Path.cwd()
+        weights_dir = Path.cwd() / 'weights'
     else:
         weights_dir = Path(weights_dir)
-    
+
     results = {}
-    
+
     for model_name, relative_path in MODEL_PATHS.items():
         target_path = weights_dir / relative_path
-        
+
         if model_name == "game_state":
             # For game_state, check if directory exists and has files
             exists = target_path.exists() and any(target_path.iterdir())
         else:
             # For other models, check if the .pt file exists
             exists = target_path.exists()
-        
+
         results[model_name] = exists
-    
+
+        if exists:
+            print(f"{model_name} model exists.")
+        else:
+            print(f'{model_name} model is not found.')
+
     return results
