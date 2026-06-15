@@ -2,16 +2,16 @@
 # This file demonstrates the expected format for model weights configuration
 
 # Ball detection model weights
-ball_detection: "weights/ball_segment/model1/weights/best.pt"
+ball_detection: "weights/ball/weights/best.pt"
 
 # Action detection model weights (6-class volleyball actions)
-action_detection: "weights/action_detection/6_class/1/weights/best.pt"
+action_detection: "weights/action/weights/best.pt"
 
 # Game status classification model weights (VideoMAE checkpoint)
-game_status: "weights/game-state/3-states/checkpoint"
+game_status: "weights/game_state/"
 
 # Court detection model weights
-court_detection: "weights/court_segment/weights/best.pt"
+court_detection: "weights/court/weights/best.pt"
 
 # Player detection model weights
 # Set to null/none to use default YOLO pose estimation model
