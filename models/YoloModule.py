@@ -228,7 +228,8 @@ class YOLOModule:
 
         return annotated_image
 
-    def _to_supervision_format(self, detections: List[Detection]) -> SupervisionDetections:
+    @staticmethod
+    def _to_supervision_format(detections: List[Detection]) -> SupervisionDetections:
         """Convert List[Detection] to supervision Detections format."""
         if not detections:
             return SupervisionDetections.empty()
@@ -253,8 +254,8 @@ class YOLOModule:
 
         return supervision_detections
 
-    def _get_labels(self,
-                    detections: List[Detection],
+    @staticmethod
+    def _get_labels(detections: List[Detection],
                     show_labels: bool,
                     show_conf: bool) -> List[str]:
         """Generate labels for annotations."""
@@ -275,8 +276,8 @@ class YOLOModule:
 
         return labels
 
-    def filter_results(self,
-                       detections: List[Detection],
+    @staticmethod
+    def filter_results(detections: List[Detection],
                        class_names: Optional[List[str]] = None,
                        min_confidence: Optional[float] = None,
                        max_confidence: Optional[float] = None) -> List[Detection]:
@@ -305,7 +306,8 @@ class YOLOModule:
 
         return filtered_detections
 
-    def get_class_counts(self, detections: List[Detection]) -> Dict[str, int]:
+    @staticmethod
+    def get_class_counts(detections: List[Detection]) -> Dict[str, int]:
         """Get count of each class in detections."""
         counts = {}
         for det in detections:
