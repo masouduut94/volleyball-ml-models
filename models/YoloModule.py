@@ -67,6 +67,14 @@ class YOLOModule:
 
         # Class names from model
         self.class_names = self.model.names if hasattr(self.model, 'names') else {}
+        self.id2classes = {v: k for k, v in self.class_names.items()}
+        self.labels = list(self.model.names.values())
+
+    def class2id(self, class_name) -> int:
+        return self.id2classes[class_name]
+
+    def id2class(self, class_id) -> str:
+        return self.class_names[class_id]
 
     def _init_annotators(self):
         """Initialize appropriate annotators based on model type."""

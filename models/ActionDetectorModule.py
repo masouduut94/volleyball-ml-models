@@ -20,8 +20,8 @@ class ActionDetectorModule:
     This class wraps the YOLOModule specifically for action detection tasks,
     providing volleyball-specific utilities and filtering.
     """
-    
-    def __init__(self, 
+
+    def __init__(self,
                  model_path: str,
                  device: Optional[str] = None):
         """
@@ -36,17 +36,16 @@ class ActionDetectorModule:
             model_path=model_path,
             device=device
         )
-        
-        # Common volleyball actions
-        self.volleyball_actions = [
-            "serve", "receive", "set", "spike", "block", "dig"
-        ]
-    
-    def detect_actions(self, 
-                      image: Union[str, np.ndarray],
-                      conf_threshold: float = 0.25,
-                      iou_threshold: float = 0.45,
-                      **kwargs) -> List[Detection]:
+        self.labels = self.yolo_module.labels
+
+    def action_id2name(self, class_id: int):
+        return self.yolo_module.id2class(class_id)
+
+    def detect_actions(self,
+                       image: Union[str, np.ndarray],
+                       conf_threshold: float = 0.25,
+                       iou_threshold: float = 0.45,
+                       **kwargs) -> List[Detection]:
         """
         Detect volleyball actions in a single frame.
         
@@ -59,19 +58,23 @@ class ActionDetectorModule:
         Returns:
             List of Detection objects with action detection results
         """
-        return self.yolo_module.detect(
-            image, 
-            conf_threshold, 
-            iou_threshold, 
+
+        detections = self.yolo_module.detect(
+            image,
+            conf_threshold,
+            iou_threshold,
             detector_model=DetectorModel.ACTION_DETECTOR.value,
             **kwargs
         )
-    
-    def filter_by_action_type(self, 
-                             detections: List[Detection],
-                             action_types: List[str]) -> List[Detection]:
+        # The model trained for actions have two extra objects (ball, serve) which we should exclude.
+        detections = [det for det in detections if det.class_name not in ['ball', 'serve']]
+
+        return detections
+
+    @staticmethod
+    def keep_actions(detections: List[Detection], action_types: List[str]) -> List[Detection]:
         """
-        Filter detections by specific action types.
+         Keep the actions given as input.
         
         Args:
             detections: Input detection list
@@ -81,8 +84,9 @@ class ActionDetectorModule:
             Filtered list of detections
         """
         return [det for det in detections if det.class_name in action_types]
-    
-    def get_action_counts(self, detections: List[Detection]) -> Dict[str, int]:
+
+    @staticmethod
+    def get_action_counts(detections: List[Detection]) -> Dict[str, int]:
         """
         Get count of each action type detected.
         
@@ -96,13 +100,13 @@ class ActionDetectorModule:
         for det in detections:
             counts[det.class_name] = counts.get(det.class_name, 0) + 1
         return counts
-    
-    def plot_actions(self, 
-                    image: np.ndarray,
-                    detections: List[Detection],
-                    show_labels: bool = True,
-                    show_conf: bool = True,
-                    line_thickness: int = 2) -> np.ndarray:
+
+    @staticmethod
+    def plot_actions(image: np.ndarray,
+                     detections: List[Detection],
+                     show_labels: bool = True,
+                     show_conf: bool = True,
+                     line_thickness: int = 2) -> np.ndarray:
         """
         Plot action detection results on image.
         
@@ -119,4 +123,3 @@ class ActionDetectorModule:
         # For now, return the original image
         # TODO: Implement proper plotting without DetectionBatch
         return image
-    

@@ -130,6 +130,17 @@ class MLManager:
 
         logger.success("All models initialized successfully!")
 
+    def check_models(self):
+        # Check if required models are available
+        if not self.is_model_available('ball_detection'):
+            raise RuntimeError("Ball detection model not available")
+        if not self.is_model_available('action_detection'):
+            raise RuntimeError("Action detection model not available")
+        if not self.is_model_available('player_detection'):
+            raise RuntimeError("Player detection model not available")
+        if not self.is_model_available('tracking'):
+            raise RuntimeError("Tracking module not available")
+
     def _auto_download_weights(self):
         """Automatically download missing model weights."""
         try:
@@ -315,7 +326,7 @@ class MLManager:
     # Action Detection Methods
     def detect_actions(self,
                        frame: np.ndarray,
-                       exclude: Optional[List[str]] = None,
+                       keep: Optional[List[str]] = None,
                        conf_threshold: float = 0.25,
                        iou_threshold: float = 0.45) -> List[Detection]:
         """
@@ -323,7 +334,7 @@ class MLManager:
         
         Args:
             frame: Input frame as numpy array (H, W, C)
-            exclude: List of action types to exclude from detection
+            keep: List of action types to keep in detections
             conf_threshold: Confidence threshold for detections
             iou_threshold: IoU threshold for non-maximum suppression
             
@@ -340,11 +351,15 @@ class MLManager:
         detections = self.action_detector.detect_actions(frame, conf_threshold, iou_threshold)
 
         # Filter by excluded actions if specified
-        if exclude:
-            detections = self.action_detector.filter_by_action_type(detections,
-                                                                    [action for action in
-                                                                     self.action_detector.volleyball_actions if
-                                                                     action not in exclude])
+        if keep:
+            detections = self.action_detector.keep_actions(
+                detections,
+                [
+                    action
+                    for action in self.action_detector.labels
+                    if action in keep
+                ]
+            )
 
         return detections
 
@@ -352,7 +367,7 @@ class MLManager:
     def detect_ball(self,
                     frame: np.ndarray,
                     conf_threshold: float = 0.25,
-                    iou_threshold: float = 0.45) -> Detection:
+                    iou_threshold: float = 0.45) -> Detection | None:
         """
         Detect ball in a frame using segmentation.
         
@@ -451,8 +466,11 @@ class MLManager:
         # Detect actions
         if self.action_detector is not None:
             try:
-                action_detections = self.detect_actions(frame, conf_threshold=conf_threshold,
-                                                        iou_threshold=iou_threshold)
+                action_detections = self.detect_actions(
+                    frame,
+                    conf_threshold=conf_threshold,
+                    iou_threshold=iou_threshold
+                )
             except Exception as e:
                 logger.warning(f"Action detection failed: {e}")
 

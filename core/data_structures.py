@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Union, Dict, Any
 from dataclasses_json import dataclass_json
 import numpy as np
-from ..enums import DetectorModel
+import supervision as sv
 
 
 @dataclass_json
@@ -76,9 +76,11 @@ class PlayerKeyPoints:
     right_ankle: Optional[KeyPoint] = None
 
     # Additional metadata
-    confidence: float = 0.0
+    confidence: float = 100.0
     bbox: Optional[BoundingBox] = None
     player_id: Optional[int] = None
+    class_id: Optional[int] = 10
+    class_name: Optional[str] = 'player'
 
     def get_head_keypoints(self) -> List[KeyPoint]:
         """Get all head-related keypoints."""
@@ -242,6 +244,12 @@ class Detection:
     class_name: str
     model: str
 
+    def to_supervision(self):
+        return sv.Detections(
+            xyxy=np.array([[self.bbox.x1, self.bbox.y1, self.bbox.x2, self.bbox.y2]]),
+            confidence=np.array([self.confidence]),
+            class_id=np.array([self.class_id]),
+        )
 
 @dataclass_json
 @dataclass

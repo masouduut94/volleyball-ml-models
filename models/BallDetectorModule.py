@@ -41,7 +41,7 @@ class BallDetectorModule:
                    image: Union[str, np.ndarray],
                    conf_threshold: float = 0.25,
                    iou_threshold: float = 0.45,
-                   **kwargs) -> Detection:
+                   **kwargs) -> Detection | None:
         """
         Detect volleyball ball in a single frame.
         
@@ -63,7 +63,7 @@ class BallDetectorModule:
         )
 
         # Filter to only ball detections
-        ball = max(detections, key=lambda x: x.confidence) if detections else []
+        ball = max(detections, key=lambda x: x.confidence) if detections else None
 
         return ball
     
