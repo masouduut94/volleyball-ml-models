@@ -9,9 +9,8 @@ import numpy as np
 from typing import List, Optional, Union
 
 from .YoloModule import YOLOModule
-from ..enums import DetectorModel
 from ..utils.logger import logger
-from ..core.data_structures import Detection
+from ..core.data_structures import Detection, SegmentationDetection
 
 
 class CourtSegmentationModule:
@@ -21,8 +20,8 @@ class CourtSegmentationModule:
     This class wraps the YOLOModule specifically for court segmentation tasks,
     providing volleyball-specific utilities and filtering.
     """
-    
-    def __init__(self, 
+
+    def __init__(self,
                  model_path: str,
                  device: Optional[str] = None):
         """
@@ -38,14 +37,12 @@ class CourtSegmentationModule:
             model_path=model_path,
             device=device
         )
-        
-        self.court_class_names = ["court", "volleyball_court", "field"]
-    
-    def segment_court(self, 
-                     image: Union[str, np.ndarray],
-                     conf_threshold: float = 0.25,
-                     iou_threshold: float = 0.45,
-                     **kwargs) -> List[Detection]:
+
+    def segment_court(self,
+                      image: Union[str, np.ndarray],
+                      conf_threshold: float = 0.25,
+                      iou_threshold: float = 0.45,
+                      **kwargs) -> Optional[SegmentationDetection]:
         """
         Segment volleyball court in a single frame.
         
@@ -58,39 +55,15 @@ class CourtSegmentationModule:
         Returns:
             List of Detection objects with court segmentation results
         """
-        detections = self.yolo_module.detect(
-            image, 
-            conf_threshold, 
-            iou_threshold, 
-            detector_model=DetectorModel.COURT_DETECTOR.value,
-            **kwargs
-        )
-        
-        # Filter to only court detections
-        court_detections = []
-        for det in detections:
-            if det.class_name.lower() in self.court_class_names:
-                court_detections.append(det)
-        
-        return court_detections
-    
-    def get_court_mask(self, detections: List[Detection]) -> Optional[np.ndarray]:
-        """
-        Get the court segmentation mask from detections.
-        
-        Args:
-            detections: Court segmentation results
-            
-        Returns:
-            Court segmentation mask or None if no detections
-        """
-        if not detections:
-            return None
-        
-        # Get the first court detection with a mask
-        for det in detections:
-            if hasattr(det, 'mask') and det.mask is not None:
-                return np.array(det.mask)
-        
-        return None
+        detections = self.yolo_module.detect(image, conf_threshold, iou_threshold, **kwargs)
+        h, w, _ = image.shape
+        # Keep the biggest one which is presumably the court
+        court: SegmentationDetection = max(
+            detections,
+            key=lambda x: x.confidence
+        ) if detections else None
+        if court:
+            court.get_court_corners_from_mask(original_width=w, original_height=h)
+            return court
 
+        return None

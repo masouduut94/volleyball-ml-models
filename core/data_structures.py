@@ -6,7 +6,9 @@ from various ML models. All classes are decorated with dataclasses_json for easy
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Union, Dict, Any
+from typing import List, Optional
+
+import cv2
 from dataclasses_json import dataclass_json
 import numpy as np
 import supervision as sv
@@ -184,11 +186,11 @@ class PlayerKeyPoints:
         return False
 
     @classmethod
-    def from_yolo_output(cls, 
-                        bbox_coords: List[float], 
-                        keypoints: np.ndarray, 
-                        confidence: float,
-                        player_id: Optional[int] = None) -> 'PlayerKeyPoints':
+    def from_yolo_output(cls,
+                         bbox_coords: List[float],
+                         keypoints: np.ndarray,
+                         confidence: float,
+                         player_id: Optional[int] = None) -> 'PlayerKeyPoints':
         """
         Initialize PlayerKeyPoints from YOLO pose model output.
         
@@ -202,9 +204,9 @@ class PlayerKeyPoints:
             PlayerKeyPoints instance
         """
         # Create bounding box
-        bbox = BoundingBox(x1=bbox_coords[0], y1=bbox_coords[1], 
-                          x2=bbox_coords[2], y2=bbox_coords[3])
-        
+        bbox = BoundingBox(x1=bbox_coords[0], y1=bbox_coords[1],
+                           x2=bbox_coords[2], y2=bbox_coords[3])
+
         # COCO keypoint names in order
         keypoint_names = [
             'nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
@@ -212,20 +214,20 @@ class PlayerKeyPoints:
             'left_wrist', 'right_wrist', 'left_hip', 'right_hip',
             'left_knee', 'right_knee', 'left_ankle', 'right_ankle'
         ]
-        
+
         # Create keypoint dictionary
         keypoint_dict = {}
         for i, name in enumerate(keypoint_names):
             if i < len(keypoints):
                 x, y, kp_conf = keypoints[i]
                 if kp_conf > 0:  # Only add visible keypoints
-                    keypoint_dict[name] = KeyPoint(x=float(x), y=float(y), 
-                                                  confidence=float(kp_conf), name=name)
+                    keypoint_dict[name] = KeyPoint(x=float(x), y=float(y),
+                                                   confidence=float(kp_conf), name=name)
                 else:
                     keypoint_dict[name] = None
             else:
                 keypoint_dict[name] = None
-        
+
         return cls(
             bbox=bbox,
             confidence=confidence,
@@ -242,26 +244,105 @@ class Detection:
     confidence: float
     class_id: int
     class_name: str
-    model: str
 
-    def to_supervision(self):
-        return sv.Detections(
+    def to_supervision(self, tracker: sv.ByteTrack = None):
+        detections = sv.Detections(
             xyxy=np.array([[self.bbox.x1, self.bbox.y1, self.bbox.x2, self.bbox.y2]]),
             confidence=np.array([self.confidence]),
             class_id=np.array([self.class_id]),
         )
+        if tracker is not None:
+            detections = tracker.update_with_detections(detections)
+        return detections
+
 
 @dataclass_json
 @dataclass
 class SegmentationDetection(Detection):
     """Segmentation detection result with mask."""
     mask: Optional[np.ndarray] = None
-    polygon: Optional[List[tuple[float, float]]] = None
+    polygon: Optional[List[List[int]]] = field(default_factory=list)
 
     def __post_init__(self):
         """Convert numpy array to list for JSON serialization."""
         if isinstance(self.mask, np.ndarray):
             self.mask = self.mask.tolist()
+
+    def get_court_corners_from_mask(
+            self,
+            original_width: int,
+            original_height: int,
+            epsilon_ratio: float = 0.002,
+            largest_only: bool = True,
+    ) -> bool:
+
+        if self.mask is None:
+            return False
+
+        mask = np.asarray(self.mask, dtype=np.uint8)
+
+        if mask.max() <= 1:
+            mask = mask * 255
+
+        mask = mask.astype(np.uint8)
+
+        mask_h, mask_w = mask.shape
+
+        contours, _ = cv2.findContours(
+            mask,
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_NONE,
+        )
+
+        if len(contours) == 0:
+            return False
+
+        contour = max(contours, key=cv2.contourArea)
+
+        epsilon = epsilon_ratio * cv2.arcLength(contour, True)
+
+        while True:
+            polygon = cv2.approxPolyDP(contour, epsilon, True)
+
+            if len(polygon) <= 4:
+                break
+
+            epsilon *= 1.2
+
+        if len(polygon) < 4:
+            rect = cv2.minAreaRect(contour)
+            polygon = cv2.boxPoints(rect)
+            polygon = polygon.astype(np.float32)
+        else:
+            polygon = polygon.squeeze().astype(np.float32)
+
+        if polygon.ndim == 1:
+            polygon = polygon.reshape(4, 2)
+
+        # Scale from mask coordinates to original image coordinates
+        scale_x = original_width / mask_w
+        scale_y = original_height / mask_h
+
+        polygon[:, 0] *= scale_x
+        polygon[:, 1] *= scale_y
+
+        # Order corners
+        s = polygon.sum(axis=1)
+        diff = np.diff(polygon, axis=1)
+
+        top_left = polygon[np.argmin(s)]
+        bottom_right = polygon[np.argmax(s)]
+        top_right = polygon[np.argmin(diff)]
+        bottom_left = polygon[np.argmax(diff)]
+
+        self.polygon = [
+            top_left.astype(int).tolist(),
+            top_right.astype(int).tolist(),
+            bottom_left.astype(int).tolist(),
+            bottom_right.astype(int).tolist(),
+        ]
+
+        return True
 
 
 @dataclass_json
@@ -277,6 +358,3 @@ class GameStateResult:
     """Game state classification result."""
     predicted_class: str
     confidence: float
-
-
-

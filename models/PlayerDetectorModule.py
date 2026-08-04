@@ -10,7 +10,6 @@ import numpy as np
 import cv2
 from .YoloModule import YOLOModule
 from ..core.data_structures import PlayerKeyPoints, KeyPoint, BoundingBox, PoseDetection, Detection
-from ..enums import YOLOModelType, DetectorModel
 from ..utils.logger import logger
 
 
@@ -69,7 +68,6 @@ class PlayerDetectorModule:
             image, 
             conf_threshold, 
             iou_threshold,
-            detector_model=DetectorModel.PLAYER_DETECTOR.value,
             **kwargs
         )
         

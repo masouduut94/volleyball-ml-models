@@ -9,9 +9,6 @@ from .data_structures import (
     Detection, SegmentationDetection, PoseDetection,
     BoundingBox, KeyPoint, GameStateResult, PlayerKeyPoints
 )
-from .tracking_module import (
-    VolleyballTracker, TrackedObject, TrackingConfig
-)
 
 __all__ = [
     # Data structures
@@ -22,9 +19,4 @@ __all__ = [
     "KeyPoint",
     "GameStateResult",
     "PlayerKeyPoints",
-    
-    # Tracking
-    "VolleyballTracker",
-    "TrackedObject", 
-    "TrackingConfig"
 ]

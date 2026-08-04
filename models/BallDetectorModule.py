@@ -5,11 +5,10 @@ This module provides specialized ball detection functionality using YOLO models
 trained for volleyball ball recognition and segmentation.
 """
 
-from typing import List, Optional, Union, Tuple
+from typing import Optional, Union
 import numpy as np
 from .YoloModule import YOLOModule
 from ..core.data_structures import Detection
-from ..enums import DetectorModel
 from ..utils.logger import logger
 
 
@@ -58,7 +57,6 @@ class BallDetectorModule:
             image,
             conf_threshold,
             iou_threshold,
-            detector_model=DetectorModel.BALL_DETECTOR.value,
             **kwargs
         )
 

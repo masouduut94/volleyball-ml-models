@@ -63,7 +63,6 @@ class ActionDetectorModule:
             image,
             conf_threshold,
             iou_threshold,
-            detector_model=DetectorModel.ACTION_DETECTOR.value,
             **kwargs
         )
         # The model trained for actions have two extra objects (ball, serve) which we should exclude.

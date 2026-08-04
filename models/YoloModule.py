@@ -7,6 +7,7 @@ the same API for detection, plotting, and result filtering.
 
 import cv2
 import numpy as np
+from ultralytics.engine.results import Results
 from ultralytics import YOLO
 from typing import List, Optional, Union, Tuple, Dict
 from supervision import BoxAnnotator, MaskAnnotator, VertexAnnotator
@@ -28,7 +29,7 @@ class YOLOModule:
     and provides consistent interfaces for inference, plotting, and result processing.
     """
 
-    def __init__(self,model_path: str, device: Optional[str] = None):
+    def __init__(self, model_path: str, device: Optional[str] = None):
         """
         Initialize YOLO module.
         
@@ -91,8 +92,7 @@ class YOLOModule:
                image: Union[str, np.ndarray],
                conf_threshold: float = 0.25,
                iou_threshold: float = 0.45,
-               detector_model: str = "unknown",
-               **kwargs) -> List[Detection]:
+               **kwargs) -> List[Detection | SegmentationDetection | KeyPoint]:
         """
         Perform detection on a single frame.
         
@@ -100,7 +100,6 @@ class YOLOModule:
             image: Input image - can be path or numpy array
             conf_threshold: Confidence threshold for detections
             iou_threshold: IoU threshold for NMS
-            detector_model: Name of the detector model for tracking purposes
             **kwargs: Additional arguments for YOLO inference
             
         Returns:
@@ -109,18 +108,21 @@ class YOLOModule:
         logger.debug(f"Running detection with conf={conf_threshold}, iou={iou_threshold}")
 
         # Run inference on single image only
-        results = self.model(image, conf=conf_threshold, iou=iou_threshold, verbose=False, **kwargs)
+        results: Results | List[Results] = self.model(
+            image,
+            conf=conf_threshold,
+            iou=iou_threshold,
+            verbose=False,
+            **kwargs
+        )
 
         # Process results for single image
-        detections = self._process_single_result(
-            results[0] if isinstance(results, list) else results,
-            detector_model
-        )
+        detections = self._process_single_result(results[0] if isinstance(results, list) else results)
 
         logger.debug(f"Detection completed. Found {len(detections)} detections")
         return detections
 
-    def _process_single_result(self, result, detector_model: str) -> List[Detection]:
+    def _process_single_result(self, result: Results) -> List[Detection]:
         """Process single YOLO result into Detection objects."""
         detections = []
 
@@ -148,7 +150,6 @@ class YOLOModule:
                     confidence=conf,
                     class_id=class_id,
                     class_name=class_name,
-                    model=detector_model,
                     mask=mask
                 )
             elif self.model_type == YOLOModelType.POSE and hasattr(result, 'keypoints'):
@@ -159,7 +160,6 @@ class YOLOModule:
                     confidence=conf,
                     class_id=class_id,
                     class_name=class_name,
-                    model=detector_model,
                     keypoints=keypoints
                 )
             else:
@@ -169,7 +169,6 @@ class YOLOModule:
                     confidence=conf,
                     class_id=class_id,
                     class_name=class_name,
-                    model=detector_model
                 )
 
             detections.append(det)
@@ -193,51 +192,7 @@ class YOLOModule:
         return keypoints
 
     @staticmethod
-    def _get_image_shape(image) -> Tuple[int, int]:
-        """Get image shape from image input."""
-        if isinstance(image, str):
-            img = cv2.imread(image)
-            return img.shape[:2] if img is not None else (0, 0)
-        elif isinstance(image, np.ndarray):
-            return image.shape[:2]
-        return (0, 0)
-
-    def plot_results(self,
-                     image: np.ndarray,
-                     detections: List[Detection],
-                     show_labels: bool = True,
-                     show_conf: bool = True,
-                     line_thickness: int = 2) -> np.ndarray:
-        """
-        Plot detection results on image using supervision library.
-        
-        Args:
-            image: Input image
-            detections: Detection results to plot
-            show_labels: Whether to show class labels
-            show_conf: Whether to show confidence scores
-            line_thickness: Line thickness for annotations
-            
-        Returns:
-            Annotated image
-        """
-        if not detections:
-            return image
-
-        # Convert to supervision format
-        supervision_detections = self._to_supervision_format(detections)
-
-        # Annotate image
-        annotated_image = self.annotator.annotate(
-            scene=image.copy(),
-            detections=supervision_detections,
-            labels=self._get_labels(detections, show_labels, show_conf)
-        )
-
-        return annotated_image
-
-    @staticmethod
-    def _to_supervision_format(detections: List[Detection]) -> SupervisionDetections:
+    def to_sv_format(detections: List[Detection]) -> SupervisionDetections:
         """Convert List[Detection] to supervision Detections format."""
         if not detections:
             return SupervisionDetections.empty()
@@ -283,41 +238,3 @@ class YOLOModule:
             labels.append(" ".join(label_parts))
 
         return labels
-
-    @staticmethod
-    def filter_results(detections: List[Detection],
-                       class_names: Optional[List[str]] = None,
-                       min_confidence: Optional[float] = None,
-                       max_confidence: Optional[float] = None) -> List[Detection]:
-        """
-        Filter detection results based on criteria.
-        
-        Args:
-            detections: Input detection list
-            class_names: Filter by class names
-            min_confidence: Minimum confidence threshold
-            max_confidence: Maximum confidence threshold
-            
-        Returns:
-            Filtered list of detections
-        """
-        filtered_detections = detections.copy()
-
-        if class_names:
-            filtered_detections = [d for d in filtered_detections if d.class_name in class_names]
-
-        if min_confidence is not None:
-            filtered_detections = [d for d in filtered_detections if d.confidence >= min_confidence]
-
-        if max_confidence is not None:
-            filtered_detections = [d for d in filtered_detections if d.confidence <= max_confidence]
-
-        return filtered_detections
-
-    @staticmethod
-    def get_class_counts(detections: List[Detection]) -> Dict[str, int]:
-        """Get count of each class in detections."""
-        counts = {}
-        for det in detections:
-            counts[det.class_name] = counts.get(det.class_name, 0) + 1
-        return counts

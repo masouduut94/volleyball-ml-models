@@ -11,9 +11,8 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Union, Tuple
 
 # Import model classes
-from .core import GameStateResult, VolleyballTracker
-from .visualization import VolleyballVisualizer
-from .core.data_structures import PlayerKeyPoints, Detection
+from .core import GameStateResult
+from .core.data_structures import PlayerKeyPoints, Detection, SegmentationDetection
 from .settings import ModelWeightsConfig
 from .utils.logger import logger
 from .models import (
@@ -118,15 +117,8 @@ class MLManager:
         self._init_court_segmentation()
         self._init_player_detection()
         self._init_action_detection()
-
-        # Initialize tracking module
-        self._init_tracking()
-
         # Initialize VideoMAE model
         self._init_game_state_classification()
-
-        # Initialize visualization module
-        self._init_visualization()
 
         logger.success("All models initialized successfully!")
 
@@ -138,8 +130,6 @@ class MLManager:
             raise RuntimeError("Action detection model not available")
         if not self.is_model_available('player_detection'):
             raise RuntimeError("Player detection model not available")
-        if not self.is_model_available('tracking'):
-            raise RuntimeError("Tracking module not available")
 
     def _auto_download_weights(self):
         """Automatically download missing model weights."""
@@ -170,102 +160,64 @@ class MLManager:
 
     def _init_action_detection(self):
         """Initialize action detection model."""
-        try:
-            if self.weights_config.action_detection:
-                # Convert to absolute path
-                model_path = Path.cwd() / self.weights_config.action_detection
-                self.action_detector = ActionDetectorModule(
-                    model_path=str(model_path),
-                    device=self.device
-                )
-                logger.success(f"Action detection model loaded: {model_path}")
-            else:
-                self.action_detector = None
-                logger.warning("Action detection model not configured")
-        except Exception as e:
-            self.action_detector = None
-            logger.error(f"Failed to load action detection model: {e}")
+        if self.weights_config.action_detection:
+            # Convert to absolute path
+            model_path = Path.cwd() / self.weights_config.action_detection
+            self.action_detector = ActionDetectorModule(
+                model_path=str(model_path),
+                device=self.device
+            )
+            logger.success(f"Action detection model loaded: {model_path}")
+        else:
+            raise ValueError("Can not initialize action detection model. ")
+            logger.warning("Action detection model not configured")
 
     def _init_ball_segmentation(self):
         """Initialize ball segmentation model."""
-        try:
-            if self.weights_config.ball_detection:
-                # Convert to absolute path
-                model_path = Path.cwd() / self.weights_config.ball_detection
-                self.ball_detector = BallDetectorModule(
-                    model_path=str(model_path),
-                    device=self.device
-                )
-                logger.success(f"Ball segmentation model loaded: {model_path}")
-            else:
-                self.ball_detector = None
-                logger.warning("Ball segmentation model not configured")
-        except Exception as e:
-            self.ball_detector = None
-            logger.error(f"Failed to load ball segmentation model: {e}")
+        if self.weights_config.ball_detection:
+            # Convert to absolute path
+            model_path = Path.cwd() / self.weights_config.ball_detection
+            self.ball_detector = BallDetectorModule(
+                model_path=str(model_path),
+                device=self.device
+            )
+            logger.success(f"Ball segmentation model loaded: {model_path}")
+        else:
+            raise ValueError(f"Can not initialize ball segmentation model. ")
+            logger.warning("Ball segmentation model not configured")
 
     def _init_court_segmentation(self):
         """Initialize court segmentation model."""
-        try:
-            if self.weights_config.court_detection:
-                # Convert to absolute path
-                model_path = Path.cwd() / self.weights_config.court_detection
-                self.court_detector = CourtSegmentationModule(
-                    model_path=str(model_path),
-                    device=self.device
-                )
-                logger.success(f"Court segmentation model loaded: {model_path}")
-            else:
-                self.court_detector = None
-                logger.warning("Court segmentation model not configured")
-        except Exception as e:
-            self.court_detector = None
-            logger.error(f"Failed to load court segmentation model: {e}")
+        if self.weights_config.court_detection:
+            # Convert to absolute path
+            model_path = Path.cwd() / self.weights_config.court_detection
+            self.court_detector = CourtSegmentationModule(
+                model_path=str(model_path),
+                device=self.device
+            )
+            logger.success(f"Court segmentation model loaded: {model_path}")
+        else:
+            logger.warning("Court segmentation model not configured")
 
     def _init_player_detection(self):
         """Initialize player keypoint detection model."""
-        try:
-            if self.weights_config.player_detection:
-                # Use custom player keypoint detection model with absolute path
-                model_path = Path.cwd() / self.weights_config.player_detection
-                self.player_detector = PlayerDetectorModule(
-                    model_path=str(model_path),
-                    device=self.device
-                )
-                logger.success(f"Custom player keypoint detection model loaded: {model_path}")
-            else:
-                # Use default YOLO pose estimation model
-                self.player_detector = PlayerDetectorModule(
-                    model_path="yolo11n-pose.pt",
-                    device=self.device
-                )
-                logger.success("Default YOLO pose estimation model loaded for player keypoint detection")
-        except Exception as e:
-            self.player_detector = None
-            logger.error(f"Failed to load player keypoint detection model: {e}")
-
-    def _init_tracking(self):
-        """Initialize tracking module."""
-        try:
-            from .core.tracking_module import TrackingConfig
-
-            # Initialize with default configuration
-            self.tracker = VolleyballTracker(
-                config=TrackingConfig()
+        if self.weights_config.player_detection:
+            # Use custom player keypoint detection model with absolute path
+            model_path = Path.cwd() / self.weights_config.player_detection
+            self.player_detector = PlayerDetectorModule(
+                model_path=str(model_path),
+                device=self.device
             )
-            logger.success("Tracking module initialized successfully")
-        except Exception as e:
-            self.tracker = None
-            logger.error(f"Failed to initialize tracking module: {e}")
-
-    def _init_visualization(self):
-        """Initialize visualization module."""
-        try:
-            self.visualizer = VolleyballVisualizer()
-            logger.success("Visualization module initialized successfully")
-        except Exception as e:
-            self.visualizer = None
-            logger.error(f"Failed to initialize visualization module: {e}")
+            logger.success(f"Custom player keypoint detection model loaded: {model_path}")
+        else:
+            # Use default YOLO pose estimation model
+            self.player_detector = PlayerDetectorModule(
+                model_path="yolo11l-pose.pt",
+                device=self.device
+            )
+            logger.success(
+                "Default YOLO pose estimation model loaded for player keypoint detection"
+            )
 
     def _init_game_state_classification(self):
         """Initialize game state classification model."""
@@ -382,17 +334,14 @@ class MLManager:
         Raises:
             RuntimeError: If ball detection model is not available
         """
-        if self.ball_detector is None:
-            raise RuntimeError("Ball detection model not available")
-
         # Use the new BallDetector class
         return self.ball_detector.detect_ball(frame, conf_threshold, iou_threshold)
 
     # Court Segmentation Methods
-    def segment_court(self,
+    def detect_court(self,
                       frame: np.ndarray,
                       conf_threshold: float = 0.25,
-                      iou_threshold: float = 0.45) -> List[Detection]:
+                      iou_threshold: float = 0.45) -> Optional[SegmentationDetection]:
         """
         Segment volleyball court in a frame.
         
@@ -407,9 +356,6 @@ class MLManager:
         Raises:
             RuntimeError: If court segmentation model is not available
         """
-        if self.court_detector is None:
-            raise RuntimeError("Court segmentation model is not available")
-
         # Use the new CourtSegmentation class
         return self.court_detector.segment_court(frame, conf_threshold, iou_threshold)
 
@@ -432,9 +378,6 @@ class MLManager:
         Raises:
             RuntimeError: If player detection model is not available
         """
-        if self.player_detector is None:
-            raise RuntimeError("Player detection model not available")
-
         # Use the new PlayerModule detect method that returns List[PlayerKeyPoints]
         return self.player_detector.detect(frame, conf_threshold, iou_threshold)
 
@@ -459,196 +402,38 @@ class MLManager:
         Note:
             Court segmentation is not included as it's typically done once per video, not per frame.
         """
-        action_detections = []
-        ball_detection = None
-        player_keypoints = []
 
         # Detect actions
-        if self.action_detector is not None:
-            try:
-                action_detections = self.detect_actions(
-                    frame,
-                    conf_threshold=conf_threshold,
-                    iou_threshold=iou_threshold
-                )
-            except Exception as e:
-                logger.warning(f"Action detection failed: {e}")
+        action_detections = self.detect_actions(frame, conf_threshold=conf_threshold, iou_threshold=iou_threshold)
 
         # Detect ball
-        if self.ball_detector is not None:
-            try:
-                ball_detection = self.detect_ball(frame, conf_threshold=conf_threshold, iou_threshold=iou_threshold)
-            except Exception as e:
-                logger.warning(f"Ball detection failed: {e}")
+        ball_detection = self.detect_ball(frame, conf_threshold=conf_threshold, iou_threshold=iou_threshold)
 
         # Detect players
-        if self.player_detector is not None:
-            try:
-                player_keypoints = self.detect_players(frame, conf_threshold=conf_threshold,
-                                                       iou_threshold=iou_threshold)
-            except Exception as e:
-                logger.warning(f"Player detection failed: {e}")
+        player_keypoints = self.detect_players(frame, conf_threshold=conf_threshold, iou_threshold=iou_threshold)
 
         return action_detections, ball_detection, player_keypoints
 
-    # Tracking Methods
-    def track_objects(self,
-                      detections: List[Any],
-                      frame_number: int) -> List[Dict[str, Any]]:
-        """
-        Track objects across frames.
-        
-        Args:
-            detections: List of Norfair Detection objects
-            frame_number: Current frame number
-            
-        Returns:
-            List of tracked objects with trajectory information
-        """
-        if self.tracker is None:
-            raise RuntimeError("Tracking module not available")
+    def filter_people_outside_court(self,
+                                    players: PlayerKeyPoints,
+                                    court: SegmentationDetection) -> List[PlayerKeyPoints]:
+        # TODO: Implement it
+        polygon = court.polygon
 
-        return self.tracker.update(detections, frame_number)
-
-    def get_tracking_stats(self) -> Dict[str, Any]:
-        """
-        Get tracking statistics.
-        
-        Returns:
-            Dictionary with tracking statistics
-        """
-        if self.tracker is None:
-            return {}
-
-        return self.tracker.get_tracking_stats()
-
-    def get_ball_trajectory(self, track_id: Optional[int] = None) -> List[Tuple[float, float]]:
-        """
-        Get ball trajectory for analysis.
-        
-        Args:
-            track_id: Specific track ID, or None for most recent
-            
-        Returns:
-            List of trajectory points (x, y)
-        """
-        if self.tracker is None:
-            return []
-
-        return self.tracker.get_ball_trajectory(track_id)
-
-    def get_player_tracks(self) -> Dict[int, Any]:
-        """
-        Get all currently tracked players.
-        
-        Returns:
-            Dictionary of player tracks
-        """
-        if self.tracker is None:
-            return {}
-
-        return self.tracker.get_player_tracks()
-
-    def get_ball_tracks(self) -> Dict[int, Any]:
-        """
-        Get all currently tracked balls.
-        
-        Returns:
-            Dictionary of ball tracks
-        """
-        if self.tracker is None:
-            return {}
-
-        return self.tracker.get_ball_tracks()
-
-    # Visualization Methods
-    def visualize_frame(self,
-                        frame: np.ndarray,
-                        detections: List[Dict[str, Any]] = None,
-                        tracked_objects: List[Dict[str, Any]] = None,
-                        game_state: str = "",
-                        frame_info: str = "") -> np.ndarray:
-        """
-        Visualize frame with detections, tracking, and game state.
-        
-        Args:
-            frame: Input frame
-            detections: List of detection objects
-            tracked_objects: List of tracked objects
-            game_state: Current game state
-            frame_info: Additional frame information
-            
-        Returns:
-            Frame with visualization overlays
-        """
-        if self.visualizer is None:
-            return frame
-
-        result_frame = frame.copy()
-
-        # Draw detections
-        if detections:
-            result_frame = self.visualizer.draw_detections(result_frame, detections)
-
-        # Draw tracking
-        if tracked_objects:
-            result_frame = self.visualizer.draw_tracking(result_frame, tracked_objects)
-
-        # Draw game state
-        if game_state:
-            result_frame = self.visualizer.draw_game_state(result_frame, game_state, frame_info=frame_info)
-
-        return result_frame
-
-    def create_trajectory_plot(self,
-                               trajectory: List[Tuple[float, float]],
-                               title: str = "Ball Trajectory",
-                               save_path: Optional[str] = None) -> Any:
-        """
-        Create a trajectory plot.
-        
-        Args:
-            trajectory: List of trajectory points
-            title: Plot title
-            save_path: Optional path to save the plot
-            
-        Returns:
-            Matplotlib figure
-        """
-        if self.visualizer is None:
-            return None
-
-        return self.visualizer.create_trajectory_plot(trajectory, title, save_path)
-
-    def create_tracking_summary(self,
-                                save_path: Optional[str] = None) -> Any:
-        """
-        Create a tracking summary visualization.
-        
-        Args:
-            save_path: Optional path to save the plot
-            
-        Returns:
-            Matplotlib figure
-        """
-        if self.visualizer is None:
-            return None
-
-        tracking_stats = self.get_tracking_stats()
-        return self.visualizer.create_tracking_summary(tracking_stats, save_path)
+        return None
 
     # Game State Classification Methods
     def classify_game_state(self,
                             frames: List[np.ndarray]) -> GameStateResult:
         """
         Classify the current game state using VideoMAE.
-        
+
         Args:
             frames: List of consecutive frames for temporal analysis
-            
+
         Returns:
             GameStateResult with classification results
-            
+
         Raises:
             RuntimeError: If game state classification model is not available
         """
@@ -661,7 +446,7 @@ class MLManager:
     def get_model_status(self) -> Dict[str, Dict[str, Any]]:
         """
         Get status of all models.
-        
+
         Returns:
             Dictionary containing status information for each model
         """
@@ -696,26 +481,15 @@ class MLManager:
             'available': self.game_state_detector is not None
         }
 
-        # Tracking
-        status['tracking'] = {
-            'available': self.tracker is not None,
-            'stats': self.get_tracking_stats() if self.tracker is not None else {}
-        }
-
-        # Visualization
-        status['visualization'] = {
-            'available': self.visualizer is not None
-        }
-
         return status
 
     def is_model_available(self, model_name: str) -> bool:
         """
         Check if a specific model is available.
-        
+
         Args:
             model_name: Name of the model to check
-            
+
         Returns:
             True if model is available, False otherwise
         """
@@ -725,29 +499,7 @@ class MLManager:
             'court_segmentation': self.court_detector,
             'player_detection': self.player_detector,
             'game_state_classification': self.game_state_detector,
-            'tracking': self.tracker,
-            'visualization': self.visualizer
         }
 
         return model_map.get(model_name) is not None
 
-    def cleanup(self):
-        """Clean up model resources."""
-        # YOLO models are automatically cleaned up
-
-        # Clean up tracker
-        if hasattr(self, 'tracker') and self.tracker is not None:
-            self.tracker.reset()
-
-        # Clean up visualizer
-        if hasattr(self, 'visualizer') and self.visualizer is not None:
-            # Close any open matplotlib figures
-            try:
-                import matplotlib.pyplot as plt
-                plt.close('all')
-            except ImportError:
-                pass
-
-    def __del__(self):
-        """Cleanup when object is destroyed."""
-        self.cleanup()
