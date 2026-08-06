@@ -52,19 +52,12 @@ class YOLOModule:
             self.model_type = YOLOModelType.SEGMENTATION
         elif yolo_task == 'pose':
             self.model_type = YOLOModelType.POSE
-        elif yolo_task == 'classify':
-            self.model_type = YOLOModelType.CLASSIFICATION
-        elif yolo_task == 'obb':
-            self.model_type = YOLOModelType.OBB
         else:
             self.model_type = YOLOModelType.DETECTION  # default fallback
 
         if device:
             logger.info(f"Moving YOLO model to device: {device}")
             self.model.to(device)
-
-        # Initialize annotators based on model type
-        self._init_annotators()
 
         # Class names from model
         self.class_names = self.model.names if hasattr(self.model, 'names') else {}
@@ -76,17 +69,6 @@ class YOLOModule:
 
     def id2class(self, class_id) -> str:
         return self.class_names[class_id]
-
-    def _init_annotators(self):
-        """Initialize appropriate annotators based on model type."""
-        if self.model_type == YOLOModelType.DETECTION:
-            self.annotator = BoxAnnotator()
-        elif self.model_type == YOLOModelType.SEGMENTATION:
-            self.annotator = MaskAnnotator()
-        elif self.model_type == YOLOModelType.POSE:
-            self.annotator = VertexAnnotator()
-        else:
-            self.annotator = BoxAnnotator()
 
     def detect(self,
                image: Union[str, np.ndarray],
@@ -217,24 +199,3 @@ class YOLOModule:
 
         return supervision_detections
 
-    @staticmethod
-    def _get_labels(detections: List[Detection],
-                    show_labels: bool,
-                    show_conf: bool) -> List[str]:
-        """Generate labels for annotations."""
-        if not show_labels and not show_conf:
-            return []
-
-        labels = []
-        for det in detections:
-            label_parts = []
-
-            if show_labels:
-                label_parts.append(det.class_name)
-
-            if show_conf:
-                label_parts.append(f"{det.confidence:.2f}")
-
-            labels.append(" ".join(label_parts))
-
-        return labels
